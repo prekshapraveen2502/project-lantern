@@ -98,3 +98,23 @@ xbrl:
   label_map: config/label_map.yaml
   fuzzy_cutoff: 0.88                # how close a label must be for a fuzzy match
   statements: [income, comprehensive_income, balance, cash_flows]
+
+# ---- Case Study 2 (Appendix B keys; classroom values from the Lab 2 kit, replace with ours) ----
+schema_version: lantern/2.0
+deal: {variant_id: sample-wren, active: [deal_a, deal_b], practice: kestrel}
+ingest: {routing: {comps: xbrl+docling_items, dataroom: cs1_full+docling+ocr, web: html_text}}
+web: {host: sim.example.edu, sitemap_url: https://sim.example.edu/sitemap.xml}
+comps: {tickers: [SMPA, SMPB, SMPC, SMPD, SMPE, SMPF], forms: [10-K, 10-Q], after: 2024-07-01, before: 2026-09-30, earnings_8k_quarters: 4}
+reference: {price_snapshot: data/reference/prices_asof_20260930.csv}
+llm:
+  mode: replay                 # LANTERN_LLM_MODE overrides this
+  provider: openai             # openai | anthropic (live and record modes only)
+  models: {large: gpt-4.1-mini, small: gpt-4.1-nano, judge: claude-sonnet-4-5, vision: gpt-4.1-mini}
+  embed: {hosted: text-embedding-3-small, open: BAAI/bge-small-en-v1.5}
+  prices: {gpt-4.1-mini: [0.40, 1.60], gpt-4.1-nano: [0.10, 0.40], claude-sonnet-4-5: [3.0, 15.0]}  # USD per 1M tokens [in, out]; check your provider's page and date it
+  temperature: 0
+budget: {usd_cap_total: 5.00, usd_cap_per_task: 0.10}
+retrieval: {strategy: block, chunk_tokens: 400, overlap_tokens: 0, k: 10, hybrid: {enabled: true, rrf_k: 60}, reranker: none}
+qa: {numeric_tolerance_rel: 0.005, max_regenerations: 1}
+reconcile: {tolerance_rel: 0.01, high_gap_rel: 0.05}
+predict: {model: logistic, test_size: 0.3, seed: 7}

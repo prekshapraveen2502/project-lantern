@@ -18,3 +18,11 @@ __pycache__/
 /data/xbrl/
 /data/bench/
 /data/ground_truth/
+
+# --- Case Study 2 ---
+# confidential data room: tracked by DVC only, never Git
+/data/dataroom/*/raw/
+# record/replay caches: tracked by DVC
+/data/llm_cache/
+/data/embed_cache/
+.ipynb_checkpoints/
