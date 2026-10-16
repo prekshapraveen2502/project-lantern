@@ -1,7 +1,5 @@
 [core]
-    remote = public
-['remote "store"']
-    url = s3://lantern-dvc-team1-2026/dvc
+    remote = cs2
+['remote "cs2"']
+    url = s3://lantern-cs2-dvc-team1-2026/dvc
     region = us-east-2
-['remote "public"']
-    url = https://lantern-dvc-team1-2026.s3.us-east-2.amazonaws.com/dvc
