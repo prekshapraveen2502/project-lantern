@@ -160,3 +160,27 @@ stages:
       - docling
     outs:
       - data/fixtures
+
+  ingest_comps:
+    cmd: python -m src.ingest.comps --output data/edgar_comps
+    deps:
+      - src/ingest/__init__.py
+      - src/ingest/edgar.py
+      - src/ingest/comps.py
+      - src/download.py
+      - src/xbrl.py
+      - src/evaluate.py
+      - src/tables.py
+      - src/docling_parse.py
+      - src/export.py
+    params:
+      - comps.tickers
+      - comps.forms
+      - comps.after
+      - comps.before
+      - docling
+      - export.item_heading_max_chars
+      - download.user_agent_name
+      - download.user_agent_email
+    outs:
+      - data/edgar_comps
