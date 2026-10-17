@@ -5,7 +5,9 @@ plus raise_for_status(), a rate limit, and a ticker -> CIK lookup.
 """
 from __future__ import annotations
 
+import re
 import time
+from datetime import date
 
 import requests
 import yaml
@@ -88,3 +90,46 @@ def full_submission(cik: str, accn: str, params: dict) -> bytes:
     """The whole filing as one SGML text file: the same file CS1's unpacker reads."""
     url = FULL_SUBMISSION_URL.format(cik_int=int(cik), accn_nodash=accn.replace("-", ""), accn=accn)
     return get_bytes(url, params)
+
+
+
+def earnings_8ks(subs: dict, n: int, before: str, min_gap_days: int = 0) -> tuple[list[dict], list[dict]]:
+    """The newest n Form 8-K filings reporting Item 2.02, filed before `before`.
+
+    Split the items field on commas before matching: a plain substring test would also match 12.02.
+    Exact match on form: '8-K' does not match '8-K/A'.
+    An Item 2.02 8-K filed within min_gap_days of the newer one already kept (e.g. a leadership
+    announcement that reaffirms guidance) is skipped, so each kept filing is a different quarter's
+    release. min_gap_days = 0 keeps the literal "last n Item 2.02 8-Ks".
+    Returns (kept, skipped).
+    """
+    rec = subs["filings"]["recent"]
+    rows = [
+        {"form": f, "date": d, "accn": a, "doc": p, "items": i}
+        for f, d, a, p, i in zip(rec["form"], rec["filingDate"], rec["accessionNumber"],
+                                 rec["primaryDocument"], rec["items"])
+        if f == "8-K" and "2.02" in [x.strip() for x in i.split(",")] and d < before
+    ]
+    rows.sort(key=lambda r: r["date"], reverse=True)
+    kept, skipped = [], []
+    for r in rows:
+        if kept and (date.fromisoformat(kept[-1]["date"]) - date.fromisoformat(r["date"])).days < min_gap_days:
+            skipped.append(r)
+            continue
+        kept.append(r)
+        if len(kept) == n:
+            break
+    return kept, skipped
+
+
+def sgml_documents(raw: str) -> list[dict]:
+    """Split a full-submission text file into its documents, keeping each one's TYPE (e.g. EX-99.1)."""
+    docs = []
+    for block in re.findall(r"<DOCUMENT>(.*?)</DOCUMENT>", raw, re.S):
+        typ = re.search(r"<TYPE>([^\n<]+)", block)
+        name = re.search(r"<FILENAME>([^\n<]+)", block)
+        body = re.search(r"<TEXT>\n?(.*?)</TEXT>", block, re.S)
+        if typ and name and body:
+            docs.append({"type": typ.group(1).strip(), "filename": name.group(1).strip(),
+                         "text": body.group(1)})
+    return docs

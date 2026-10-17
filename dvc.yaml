@@ -184,3 +184,19 @@ stages:
       - download.user_agent_email
     outs:
       - data/edgar_comps
+      
+  ingest_earnings:
+    cmd: python -m src.ingest.earnings --output data/earnings
+    deps:
+      - src/ingest/__init__.py
+      - src/ingest/edgar.py
+      - src/ingest/earnings.py
+    params:
+      - comps.tickers
+      - comps.before
+      - comps.earnings_8k_quarters
+      - comps.earnings_8k_min_gap_days
+      - download.user_agent_name
+      - download.user_agent_email
+    outs:
+      - data/earnings

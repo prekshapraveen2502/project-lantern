@@ -104,7 +104,7 @@ schema_version: lantern/2.0
 deal: {variant_id: sample-wren, active: [deal_a, deal_b], practice: kestrel}
 ingest: {routing: {comps: xbrl+docling_items, dataroom: cs1_full+docling+ocr, web: html_text}}
 web: {host: sim.example.edu, sitemap_url: https://sim.example.edu/sitemap.xml}
-comps: {tickers: [AAPL, HPQ], forms: [10-K, 10-Q], after: "2024-07-01", before: "2026-09-30", earnings_8k_quarters: 4}
+comps: {tickers: [AAPL, HPQ], forms: [10-K, 10-Q], after: "2024-07-01", before: "2026-09-30", earnings_8k_quarters: 4, earnings_8k_min_gap_days: 45}
 reference: {price_snapshot: data/reference/prices_asof_20260930.csv}
 llm:
   mode: replay                 # LANTERN_LLM_MODE overrides this

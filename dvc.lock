@@ -733,8 +733,8 @@ stages:
       size: 5470
     - path: src/ingest/edgar.py
       hash: md5
-      md5: 4b34b95c49059815b0823c4aeecb559f
-      size: 3362
+      md5: 73c3916f7513f781260a76a2c8be7ae8
+      size: 5364
     - path: src/tables.py
       hash: md5
       md5: 17a13a09cd299b5d9b958c1445bb3803
@@ -766,3 +766,34 @@ stages:
       md5: 667a874359dfc78e2b714fe42b11fb20.dir
       size: 98766891
       nfiles: 401
+  ingest_earnings:
+    cmd: python -m src.ingest.earnings --output data/earnings
+    deps:
+    - path: src/ingest/__init__.py
+      hash: md5
+      md5: da06be9778d65c67f2b2c60da39887e3
+      size: 369
+    - path: src/ingest/earnings.py
+      hash: md5
+      md5: ff20f1b560f609d2599d791de9c633b7
+      size: 2568
+    - path: src/ingest/edgar.py
+      hash: md5
+      md5: 73c3916f7513f781260a76a2c8be7ae8
+      size: 5364
+    params:
+      params.yaml:
+        comps.before: '2026-09-30'
+        comps.earnings_8k_min_gap_days: 45
+        comps.earnings_8k_quarters: 4
+        comps.tickers:
+        - AAPL
+        - HPQ
+        download.user_agent_email: praveen.p@northeastern.edu
+        download.user_agent_name: NEU-DAMG7245-Fall26-Team1
+    outs:
+    - path: data/earnings
+      hash: md5
+      md5: 375a27a1b4a6eb8860c459542e607e46.dir
+      size: 3444829
+      nfiles: 24
