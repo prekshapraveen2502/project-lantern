@@ -5,7 +5,8 @@ For each deal:
      params ingest.dataroom_tiers (filename keyword -> tier); write export/manifest.csv
      (CS1 columns stem, accession plus deal_id, source_type, file, form, tier, sha256)
   2. run the CS1 stage scripts unchanged, through their path arguments, on the deal's PDFs:
-     parse_text.py (text layer + OCR trigger, ocr_log.csv) and layout.py (blocks)
+     parse_text.py (text layer + OCR trigger, ocr_log.csv), layout.py (blocks), tables.py (Camelot on
+     statement pages, tables_log.csv) and docling_parse.py (second, independent parse; html_stem unset)
   3. build lantern/2.0 records (src/ingest/records.py) and write export/records.jsonl:
        PDF page with a text layer -> CS1 layout blocks
        PDF page OCR'd by parse_text -> its full-page OCR words grouped with CS1 fallback_blocks
@@ -24,6 +25,7 @@ import hashlib
 import json
 import subprocess
 import sys
+import copy
 from importlib.metadata import version
 from pathlib import Path
 
@@ -79,6 +81,15 @@ def run_cs1(script: str, *args: str) -> None:
     cmd = [sys.executable, str(SRC / script), *args]
     print("[INFO] $", " ".join(cmd[1:]))
     subprocess.run(cmd, check=True)
+
+
+def run_cs1_module(module: str, *args: str) -> None:
+    """Run a CS1 stage as a module from the repo root, as its DVC stage does (python -m).
+    Needed for src/docling_parse.py: run by path, src/ would be first on sys.path and Docling's own
+    'import docling_parse' (the docling-parse library) would load the CS1 file of the same name."""
+    cmd = [sys.executable, "-m", module, *args]
+    print("[INFO] $", " ".join(cmd[1:]))
+    subprocess.run(cmd, check=True, cwd=SRC.parent)
 
 
 def base_record(row: dict, deal: str, company: str, extractor: str, extractor_version: str) -> dict:
@@ -254,6 +265,17 @@ def ingest_deal(deal: str, root: Path, out_root: Path, params: dict, company: st
                 "--manifest", str(out / "manifest.csv"))
         run_cs1("layout.py", "--input", str(raw), "--output", str(work / "layout"),
                 "--figures", str(work / "figures"), "--manifest", str(out / "manifest.csv"))
+        run_cs1("tables.py", "--input", str(raw), "--output", str(work / "tables"),
+                "--manifest", str(out / "manifest.csv"))
+        # CS1 docling_parse also converts the AAPL filing's HTML named by docling.html_stem and would
+        # read a 'ticker' column the data-room manifest does not have; the data room is PDFs only,
+        # so pass a params copy with html_stem unset (params.yaml itself is unchanged).
+        dl = copy.deepcopy(params)
+        dl["docling"]["html_stem"] = None
+        dl_params = work / "docling_params.yaml"
+        dl_params.write_text(yaml.safe_dump(dl, sort_keys=False), encoding="utf-8")
+        run_cs1_module("src.docling_parse", "--input", str(raw), "--output", str(work / "docling"),
+                       "--raw", str(raw), "--params", str(dl_params), "--manifest", str(out / "manifest.csv"))
 
     import pytesseract
     versions = {"pdfplumber": version("pdfplumber"), "tesseract": str(pytesseract.get_tesseract_version())}
