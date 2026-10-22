@@ -110,6 +110,9 @@ def main() -> None:
     allowed_hosts = {host} | EDGAR_HOSTS
     mirror = Path(args.mirror).expanduser() if args.mirror else None
     variant = json.loads(Path(args.variant).expanduser().read_text(encoding="utf-8"))
+    if variant.get("host") and (variant["host"] != host or variant.get("sitemap_url") != params["web"]["sitemap_url"]):
+        raise SystemExit(f"params web.host / web.sitemap_url ({host}, {params['web']['sitemap_url']}) do not match "
+                         f"variant.json ({variant['host']}, {variant.get('sitemap_url')}): copy them into params.yaml")
     paths = deal_paths(variant)
     names = variant.get("deals", {})
     out = Path(args.output)
