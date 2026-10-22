@@ -29,7 +29,7 @@ ACCESSION = re.compile(r"^\d{10}-\d{2}-\d{6}$")
 DR_ID = re.compile(r"^DR-(deal_a|deal_b|kestrel)-\d{3}$")
 WEB_ID = re.compile(r"^WEB-[0-9a-f]{8}$")
 CIK = re.compile(r"^\d{10}$")
-BLOCK_ID = re.compile(r"^(p\d{4}_b\d{3,}|t\d{3,}|s\d{3,})$")   # PDF block, transcript turn, sheet
+BLOCK_ID = re.compile(r"^(p\d{4}_b\d{3,}|t\d{3,}|s\d{3,}|w\d{3,})$")   # PDF block, transcript turn, sheet, web block
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 EDGAR_TYPES = {"edgar_filing", "edgar_xbrl", "edgar_8k_exhibit"}
 NO_PAGES = {"text_span", "sheet_cell", "web_span"}
@@ -101,8 +101,8 @@ class RecordV2(BaseModel):
                 errs.append("EDGAR records must have deal_id 'public'")
             if not (self.cik and CIK.match(self.cik)):
                 errs.append("EDGAR records need a 10-digit cik")
-        elif self.source_type == "synthetic_web" and not WEB_ID.match(self.doc_id):
-            errs.append(f"web doc_id must be WEB-<sha8>, got {self.doc_id!r}")
+        if self.source_type == "synthetic_web" and self.tier != 5:
+            errs.append("synthetic-web records are tier 5 (public-web, a labelled claim)")
         if self.source_type != "dataroom" and self.source_type not in EDGAR_TYPES and self.cik:
             errs.append("cik is only for EDGAR records")
 
