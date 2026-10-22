@@ -33,6 +33,7 @@ import openpyxl
 import yaml
 
 from src.ingest.records import write_jsonl
+from src.ingest.runstats import RunStats
 
 SRC = Path(__file__).resolve().parents[1]           # src/, where the CS1 scripts live
 SUFFIXES = {".pdf", ".xlsx", ".txt"}
@@ -251,7 +252,7 @@ def xlsx_records(row, deal, company, path: Path) -> list[dict]:
     return out
 
 
-def ingest_deal(deal: str, root: Path, out_root: Path, params: dict, company: str) -> int:
+def ingest_deal(deal: str, root: Path, out_root: Path, params: dict, company: str, stats) -> int:
     raw = root / deal / "raw"
     if not raw.is_dir():
         raise FileNotFoundError(f"{raw} not found")
@@ -259,39 +260,55 @@ def ingest_deal(deal: str, root: Path, out_root: Path, params: dict, company: st
     work = out / "work"
     rows = plan(raw, deal, params["ingest"]["dataroom_tiers"])
     write_manifest(rows, out / "manifest.csv")
+    manifest = str(out / "manifest.csv")
 
-    if any(r["file"].lower().endswith(".pdf") for r in rows):
-        run_cs1("parse_text.py", "--input", str(raw), "--output", str(work / "parsed"),
-                "--manifest", str(out / "manifest.csv"))
-        run_cs1("layout.py", "--input", str(raw), "--output", str(work / "layout"),
-                "--figures", str(work / "figures"), "--manifest", str(out / "manifest.csv"))
-        run_cs1("tables.py", "--input", str(raw), "--output", str(work / "tables"),
-                "--manifest", str(out / "manifest.csv"))
+    pdfs = [raw / r["file"] for r in rows if r["file"].lower().endswith(".pdf")]
+    if pdfs:
+        import pdfplumber
+        pages = 0
+        for p in pdfs:
+            with pdfplumber.open(p) as pdf:
+                pages += len(pdf.pages)
         # CS1 docling_parse also converts the AAPL filing's HTML named by docling.html_stem and would
         # read a 'ticker' column the data-room manifest does not have; the data room is PDFs only,
         # so pass a params copy with html_stem unset (params.yaml itself is unchanged).
         dl = copy.deepcopy(params)
         dl["docling"]["html_stem"] = None
+        work.mkdir(parents=True, exist_ok=True)
         dl_params = work / "docling_params.yaml"
         dl_params.write_text(yaml.safe_dump(dl, sort_keys=False), encoding="utf-8")
-        run_cs1_module("src.docling_parse", "--input", str(raw), "--output", str(work / "docling"),
-                       "--raw", str(raw), "--params", str(dl_params), "--manifest", str(out / "manifest.csv"))
+        cs1_steps = [
+            ("parse_text", lambda: run_cs1("parse_text.py", "--input", str(raw), "--output", str(work / "parsed"),
+                                           "--manifest", manifest)),
+            ("layout", lambda: run_cs1("layout.py", "--input", str(raw), "--output", str(work / "layout"),
+                                       "--figures", str(work / "figures"), "--manifest", manifest)),
+            ("tables", lambda: run_cs1("tables.py", "--input", str(raw), "--output", str(work / "tables"),
+                                       "--manifest", manifest)),
+            ("docling", lambda: run_cs1_module("src.docling_parse", "--input", str(raw), "--output", str(work / "docling"),
+                                               "--raw", str(raw), "--params", str(dl_params), "--manifest", manifest)),
+        ]
+        for name, run in cs1_steps:          # one stats row per CS1 stage, units = PDF pages of the deal
+            with stats.item(f"{deal}:{name}", "pages") as s:
+                run()
+                s["units"] = pages
+            if s["status"] != "ok":          # later stages need this one's output: stop this deal here
+                return 0
 
-    import pytesseract
-    versions = {"pdfplumber": version("pdfplumber"), "tesseract": str(pytesseract.get_tesseract_version())}
-    records = []
-    for r in rows:
-        suffix = Path(r["file"]).suffix.lower()
-        if suffix == ".pdf":
-            records += pdf_records(r, deal, company, work, params["layout"],
-                                   params["ingest"], versions)
-        elif suffix == ".txt":
-            records += txt_records(r, deal, company, raw / r["file"])
-        else:
-            records += xlsx_records(r, deal, company, raw / r["file"])
-    n = write_jsonl(records, out / "records.jsonl")
-    print(f"[INFO] {deal}: {n} validated lantern/2.0 records -> {out / 'records.jsonl'}")
-    return n
+    with stats.item(f"{deal}:records", "records") as s:
+        import pytesseract
+        versions = {"pdfplumber": version("pdfplumber"), "tesseract": str(pytesseract.get_tesseract_version())}
+        records = []
+        for r in rows:
+            suffix = Path(r["file"]).suffix.lower()
+            if suffix == ".pdf":
+                records += pdf_records(r, deal, company, work, params["layout"], params["ingest"], versions)
+            elif suffix == ".txt":
+                records += txt_records(r, deal, company, raw / r["file"])
+            else:
+                records += xlsx_records(r, deal, company, raw / r["file"])
+        s["units"] = write_jsonl(records, out / "records.jsonl")
+        print(f"[INFO] {deal}: {s['units']} validated lantern/2.0 records -> {out / 'records.jsonl'}")
+    return s["units"]
 
 
 def main() -> None:
@@ -300,6 +317,7 @@ def main() -> None:
     ap.add_argument("--out-root", default=None, help="where {deal}/export/ goes (default: --root)")
     ap.add_argument("--deals", nargs="*", default=None, help="default: params deal.active + deal.practice")
     ap.add_argument("--params", default="params.yaml")
+    ap.add_argument("--stats", default=None, help="run-stats CSV (default data/bench/cs2/ingest_dataroom.csv)")
     args = ap.parse_args()
 
     with open(args.params, encoding="utf-8") as f:
@@ -308,8 +326,10 @@ def main() -> None:
     out_root = Path(args.out_root).expanduser() if args.out_root else root
     deals = args.deals or [*params["deal"]["active"], params["deal"]["practice"]]
     names = json.loads((root / "variant.json").read_text(encoding="utf-8")).get("deals", {})
+    stats = RunStats("ingest_dataroom", args.stats)
     for deal in deals:
-        ingest_deal(deal, root, out_root, params, names.get(deal, deal))
+        ingest_deal(deal, root, out_root, params, names.get(deal, deal), stats)
+    stats.finish()
 
 
 if __name__ == "__main__":

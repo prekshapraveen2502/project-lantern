@@ -729,12 +729,16 @@ stages:
       size: 369
     - path: src/ingest/comps.py
       hash: md5
-      md5: 79d4734c2669fb545e8e7826b9070e9a
-      size: 5470
+      md5: 7445258bff4d53c15a91126161e9bd4a
+      size: 5759
     - path: src/ingest/edgar.py
       hash: md5
       md5: 73c3916f7513f781260a76a2c8be7ae8
       size: 5364
+    - path: src/ingest/runstats.py
+      hash: md5
+      md5: e2af55a01181e066ffcb1c32a9bae37a
+      size: 5088
     - path: src/tables.py
       hash: md5
       md5: 17a13a09cd299b5d9b958c1445bb3803
@@ -775,12 +779,16 @@ stages:
       size: 369
     - path: src/ingest/earnings.py
       hash: md5
-      md5: ff20f1b560f609d2599d791de9c633b7
-      size: 2568
+      md5: f7f2740acc3fd1dcb13f6b98d8e35132
+      size: 2860
     - path: src/ingest/edgar.py
       hash: md5
       md5: 73c3916f7513f781260a76a2c8be7ae8
       size: 5364
+    - path: src/ingest/runstats.py
+      hash: md5
+      md5: e2af55a01181e066ffcb1c32a9bae37a
+      size: 5088
     params:
       params.yaml:
         comps.before: '2026-09-30'

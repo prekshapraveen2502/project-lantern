@@ -15,6 +15,7 @@ from download import unpack_all          # CS1 code, unchanged (src/ is on sys.p
 from xbrl import find_ixbrl, load_facts  # CS1 code, unchanged
 from docling_parse import build_converter  # CS1 code, unchanged
 from export import ITEM                    # CS1 Item-heading regex, unchanged
+from src.ingest.runstats import RunStats
 
 WANTED_ITEMS = ("1", "1A", "7")   # brief Part 0: Business, Risk Factors, MD&A (10-K numbering)
 
@@ -115,15 +116,19 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Part 0 ingest_comps")
     ap.add_argument("--output", default="data/edgar_comps")
     ap.add_argument("--params", default="params.yaml")
+    ap.add_argument("--stats", default=None, help="run-stats CSV (default data/bench/cs2/ingest_comps.csv)")
     args = ap.parse_args()
 
     params = edgar.load_params(args.params)
     out = Path(args.output)
     ciks = edgar.cik_for(params["comps"]["tickers"], params)
     conv = build_converter(params.get("docling", {}))   # CS1 docling: settings
+    stats = RunStats("ingest_comps", args.stats)
     for ticker, cik in ciks.items():
         print(f"[INFO] {ticker} CIK {cik}")
-        ingest_ticker(ticker, cik, params, out, conv)
+        with stats.item(ticker, "filings") as r:
+            r["units"] = len(ingest_ticker(ticker, cik, params, out, conv))
+    stats.finish()
 
 
 if __name__ == "__main__":
