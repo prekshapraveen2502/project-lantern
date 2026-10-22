@@ -704,3 +704,96 @@ stages:
       md5: a74f4385fa19ace722015b1ee3329e58.dir
       size: 914600
       nfiles: 32
+  ingest_comps:
+    cmd: python -m src.ingest.comps --output data/edgar_comps
+    deps:
+    - path: src/docling_parse.py
+      hash: md5
+      md5: e84401b943eb2be0092a1f4dffd13474
+      size: 11470
+    - path: src/download.py
+      hash: md5
+      md5: f3c2b4e11e59408862f2b68153805e13
+      size: 5437
+    - path: src/evaluate.py
+      hash: md5
+      md5: 6a0806497e1a5a3b4daee41ca1a9a045
+      size: 15414
+    - path: src/export.py
+      hash: md5
+      md5: 2102aecd80b10e54d8dd1359b4cca49b
+      size: 19074
+    - path: src/ingest/__init__.py
+      hash: md5
+      md5: da06be9778d65c67f2b2c60da39887e3
+      size: 369
+    - path: src/ingest/comps.py
+      hash: md5
+      md5: 79d4734c2669fb545e8e7826b9070e9a
+      size: 5470
+    - path: src/ingest/edgar.py
+      hash: md5
+      md5: 73c3916f7513f781260a76a2c8be7ae8
+      size: 5364
+    - path: src/tables.py
+      hash: md5
+      md5: 17a13a09cd299b5d9b958c1445bb3803
+      size: 21383
+    - path: src/xbrl.py
+      hash: md5
+      md5: a4466dc12921dd407ef0cb33615efe7e
+      size: 19690
+    params:
+      params.yaml:
+        comps.after: '2024-07-01'
+        comps.before: '2026-09-30'
+        comps.forms:
+        - 10-K
+        - 10-Q
+        comps.tickers:
+        - AAPL
+        - HPQ
+        docling:
+          do_ocr: false
+          table_mode: accurate
+          html_stem: AAPL_10K_20240928
+        download.user_agent_email: praveen.p@northeastern.edu
+        download.user_agent_name: NEU-DAMG7245-Fall26-Team1
+        export.item_heading_max_chars: 150
+    outs:
+    - path: data/edgar_comps
+      hash: md5
+      md5: 667a874359dfc78e2b714fe42b11fb20.dir
+      size: 98766891
+      nfiles: 401
+  ingest_earnings:
+    cmd: python -m src.ingest.earnings --output data/earnings
+    deps:
+    - path: src/ingest/__init__.py
+      hash: md5
+      md5: da06be9778d65c67f2b2c60da39887e3
+      size: 369
+    - path: src/ingest/earnings.py
+      hash: md5
+      md5: ff20f1b560f609d2599d791de9c633b7
+      size: 2568
+    - path: src/ingest/edgar.py
+      hash: md5
+      md5: 73c3916f7513f781260a76a2c8be7ae8
+      size: 5364
+    params:
+      params.yaml:
+        comps.before: '2026-09-30'
+        comps.earnings_8k_min_gap_days: 45
+        comps.earnings_8k_quarters: 4
+        comps.tickers:
+        - AAPL
+        - HPQ
+        download.user_agent_email: praveen.p@northeastern.edu
+        download.user_agent_name: NEU-DAMG7245-Fall26-Team1
+    outs:
+    - path: data/earnings
+      hash: md5
+      md5: 375a27a1b4a6eb8860c459542e607e46.dir
+      size: 3444829
+      nfiles: 24
