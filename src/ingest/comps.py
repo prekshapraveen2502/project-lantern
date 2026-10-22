@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 from src.ingest import edgar
@@ -18,6 +19,9 @@ from export import ITEM                    # CS1 Item-heading regex, unchanged
 from src.ingest.runstats import RunStats
 
 WANTED_ITEMS = ("1", "1A", "7")   # brief Part 0: Business, Risk Factors, MD&A (10-K numbering)
+# Some filers' HTML splits the word "Item" across styled spans, and Docling joins them with a space
+# ("It em 1A. Risk Factors" in NTAP's 10-K). Rejoin it at the start of a heading line before matching.
+SPLIT_ITEM = re.compile(r"^(i)\s?(t)\s?(e)\s?(m)\b", re.IGNORECASE)
 
 def split_items(markdown: str, max_chars: int) -> dict[str, str]:
     """Cut 10-K Markdown at short 'Item N.' heading lines (the CS1 ITEM regex).
@@ -26,6 +30,7 @@ def split_items(markdown: str, max_chars: int) -> dict[str, str]:
     starts = []
     for i, line in enumerate(lines):
         bare = line.strip().lstrip("#").strip().strip("*_").strip()
+        bare = SPLIT_ITEM.sub(r"\1\2\3\4", bare)
         if bare and len(bare) <= max_chars:
             m = ITEM.match(bare)
             if m:

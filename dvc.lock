@@ -729,8 +729,8 @@ stages:
       size: 369
     - path: src/ingest/comps.py
       hash: md5
-      md5: 7445258bff4d53c15a91126161e9bd4a
-      size: 5759
+      md5: e763c0b8e9befb2f41ac0f4e3cc39c87
+      size: 6089
     - path: src/ingest/edgar.py
       hash: md5
       md5: 73c3916f7513f781260a76a2c8be7ae8
