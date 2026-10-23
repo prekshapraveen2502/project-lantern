@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 from src.ingest import edgar
+from src.ingest.runstats import RunStats
 
 
 def ingest_ticker(ticker: str, cik: str, params: dict, out: Path) -> list[Path]:
@@ -48,13 +49,17 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Part 0 ingest_earnings")
     ap.add_argument("--output", default="data/earnings")
     ap.add_argument("--params", default="params.yaml")
+    ap.add_argument("--stats", default=None, help="run-stats CSV (default data/bench/cs2/ingest_earnings.csv)")
     args = ap.parse_args()
 
     params = edgar.load_params(args.params)
     out = Path(args.output)
+    stats = RunStats("ingest_earnings", args.stats)
     for ticker, cik in edgar.cik_for(params["comps"]["tickers"], params).items():
         print(f"[INFO] {ticker} CIK {cik}")
-        ingest_ticker(ticker, cik, params, out)
+        with stats.item(ticker, "8-Ks") as r:
+            r["units"] = len(ingest_ticker(ticker, cik, params, out))
+    stats.finish()
 
 
 if __name__ == "__main__":

@@ -166,6 +166,7 @@ stages:
     deps:
       - src/ingest/__init__.py
       - src/ingest/edgar.py
+      - src/ingest/runstats.py
       - src/ingest/comps.py
       - src/download.py
       - src/xbrl.py
@@ -190,6 +191,7 @@ stages:
     deps:
       - src/ingest/__init__.py
       - src/ingest/edgar.py
+      - src/ingest/runstats.py
       - src/ingest/earnings.py
     params:
       - comps.tickers

@@ -31,6 +31,7 @@ from bs4 import BeautifulSoup
 
 from src.ingest import edgar
 from src.ingest.records import write_jsonl
+from src.ingest.runstats import RunStats
 
 EDGAR_HOSTS = {"www.sec.gov", "sec.gov", "data.sec.gov"}
 DROP_TAGS = ["script", "style", "nav", "noscript"]
@@ -101,6 +102,7 @@ def main() -> None:
     ap.add_argument("--params", default="params.yaml")
     ap.add_argument("--variant", default="data/dataroom/variant.json")
     ap.add_argument("--mirror", default=None, help="offline: local copy of the synthetic-web site")
+    ap.add_argument("--stats", default=None, help="run-stats CSV (default data/bench/cs2/ingest_web.csv)")
     args = ap.parse_args()
 
     params = edgar.load_params(args.params)
@@ -108,6 +110,9 @@ def main() -> None:
     allowed_hosts = {host} | EDGAR_HOSTS
     mirror = Path(args.mirror).expanduser() if args.mirror else None
     variant = json.loads(Path(args.variant).expanduser().read_text(encoding="utf-8"))
+    if variant.get("host") and (variant["host"] != host or variant.get("sitemap_url") != params["web"]["sitemap_url"]):
+        raise SystemExit(f"params web.host / web.sitemap_url ({host}, {params['web']['sitemap_url']}) do not match "
+                         f"variant.json ({variant['host']}, {variant.get('sitemap_url')}): copy them into params.yaml")
     paths = deal_paths(variant)
     names = variant.get("deals", {})
     out = Path(args.output)
@@ -118,6 +123,7 @@ def main() -> None:
     rp.parse(fetch(f"https://{host}/robots.txt", params, mirror).decode("utf-8").splitlines())
 
     log, records = [], []
+    stats = RunStats("ingest_web", args.stats)
     for url in sitemap_urls(fetch(params["web"]["sitemap_url"], params, mirror)):
         u = urlparse(url)
         if u.scheme != "https" or u.hostname not in allowed_hosts:
@@ -136,13 +142,17 @@ def main() -> None:
             flags = [] if deal != "public" else ["deal_path_unmatched"]
             if deal == "public":
                 print(f"[WARN] {url}: no deal code-name in the path -> deal_id public (check it)")
-        html = fetch(url, params, mirror)
-        recs = page_records(url, html, deal, names.get(deal), flags)
-        doc_id = f"WEB-{hashlib.sha256(html).hexdigest()[:8]}"
-        (out / "pages" / f"{doc_id}.html").write_bytes(html)
-        records += recs
-        log.append({"url": url, "status": "kept", "reason": "", "doc_id": doc_id, "deal_id": deal, "blocks": len(recs)})
-        print(f"[INFO] kept {url} -> {doc_id} {deal} ({len(recs)} blocks)")
+        with stats.item(url, "pages") as s:
+            html = fetch(url, params, mirror)
+            recs = page_records(url, html, deal, names.get(deal), flags)
+            doc_id = f"WEB-{hashlib.sha256(html).hexdigest()[:8]}"
+            (out / "pages" / f"{doc_id}.html").write_bytes(html)
+            records += recs
+            log.append({"url": url, "status": "kept", "reason": "", "doc_id": doc_id, "deal_id": deal, "blocks": len(recs)})
+            print(f"[INFO] kept {url} -> {doc_id} {deal} ({len(recs)} blocks)")
+            s["units"] = 1
+        if s["status"] != "ok":
+            log.append({"url": url, "status": "failed", "reason": s["error"], "doc_id": "", "deal_id": deal, "blocks": 0})
 
     with open(out / "crawl_log.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(log[0]), lineterminator="\n")
@@ -151,6 +161,7 @@ def main() -> None:
     n = write_jsonl(records, out / "records.jsonl")
     kept = sum(r["status"] == "kept" for r in log)
     print(f"[INFO] {kept} of {len(log)} sitemap URLs kept; {n} validated lantern/2.0 records -> {out / 'records.jsonl'}")
+    stats.finish()
 
 
 if __name__ == "__main__":
