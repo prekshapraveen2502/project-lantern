@@ -1,5 +1,5 @@
 [core]
-    remote = cs2
-['remote "cs2"']
-    url = s3://lantern-cs2-dvc-team1-2026/dvc
+    remote = lantern
+['remote "lantern"']
+    url = s3://project-lantern-dvc-preksha/dvc
     region = us-east-2
