@@ -27,7 +27,7 @@ import yaml
 from src.facts.periods import fiscal_labels
 from src.facts.schema import FACT_COLUMNS, create_db
 from src.facts.vocab import load_vocab
-from src.facts.xbrl_read import check_unconvertible, group_tags, read_filing
+from src.facts.xbrl_read import check_unconvertible, citation_value, group_tags, read_filing
 from src.ingest.runstats import RunStats
 
 FORMS = ("10-K", "10-Q")
@@ -133,8 +133,45 @@ def fact_id(accession: str, element_id: str) -> str:
     return "F-" + hashlib.sha256(f"{accession}|{element_id}".encode()).hexdigest()[:12]
 
 
+def fact_id_for(accession: str, f: dict) -> str:
+    """sha256(accession|element id); for a tag without an id, sha256(accession|concept|contextRef|unitRef),
+    which is unique because it is R1's grouping key."""
+    if f.get("element_id"):
+        return fact_id(accession, f["element_id"])
+    key = f"{accession}|{f['concept']}|{f['context_ref']}|{f['unit_ref']}"
+    return "F-" + hashlib.sha256(key.encode()).hexdigest()[:12]
+
+
+def citation_for(f: dict, accession: str, cik: str, doc: str, source_path: str) -> dict:
+    """ixbrl_element when the cited tag has an id (url anchored on it), otherwise ixbrl_context (brief item 3).
+    text is the tag's text as shown and sign its sign attribute: value = (-1 if sign == "-" else 1) x text x 10^scale."""
+    url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/{doc}"
+    common = {"doc_id": accession, "context_ref": f["context_ref"], "unit_ref": f["unit_ref"],
+              "also_tagged": [i for i in f["also_tagged"] if i], "source_path": source_path,
+              "text": f["text"], "sign": f["sign"]}
+    if f.get("element_id"):
+        return {"kind": "ixbrl_element", "element_id": f["element_id"], "url": f"{url}#{f['element_id']}", **common}
+    return {"kind": "ixbrl_context", "concept": f["concept"], "url": url, **common}
+
+
+def text_check(facts: list[dict]) -> dict:
+    """How many cited tags' text, with sign and scale, gives back the stored value (the Part 4 citation check)."""
+    resolves, not_numeric, bad = 0, 0, []
+    for f in facts:
+        v = citation_value(f["text"], f["scale"], f["sign"])
+        if v is None:
+            not_numeric += 1
+        elif abs(v - f["value"]) <= 1e-9 * max(1.0, abs(f["value"])):
+            resolves += 1
+        else:
+            bad.append({"element_id": f["element_id"], "concept": f["concept"], "text": f["text"],
+                        "sign": f["sign"], "scale": f["scale"], "value": f["value"]})
+    return {"resolves": resolves, "not_numeric": not_numeric, "mismatched": len(bad),
+            "mismatches": sorted(bad, key=lambda b: str(b["element_id"]))}
+
+
 def to_row(f: dict, filing: dict, cik: str, fye: str, tol: int, metric: str | None, src_sha: str,
-           extractor: str) -> dict:
+           extractor: str, source_path: str) -> dict:
     accn = filing["accn"]
     fy, fp = fiscal_labels(f["start"], f["end"], fye, tol)
     raw = f["decimals"]
@@ -142,10 +179,9 @@ def to_row(f: dict, filing: dict, cik: str, fye: str, tol: int, metric: str | No
     lineage = {"parents": [], "source_sha256": src_sha}
     if exact:
         lineage["decimals_raw"] = "INF"
-    citation = {"kind": "ixbrl_element", "doc_id": accn, "element_id": f["element_id"],
-                "context_ref": f["context_ref"], "unit_ref": f["unit_ref"], "also_tagged": f["also_tagged"]}
+    citation = citation_for(f, accn, cik, filing["doc"], source_path)
     return {
-        "fact_id": fact_id(accn, f["element_id"]), "deal_id": "public", "entity_id": cik, "concept": f["concept"],
+        "fact_id": fact_id_for(accn, f), "deal_id": "public", "entity_id": cik, "concept": f["concept"],
         "metric": metric, "value": f["value"], "unit": f["unit"], "scale": f["scale"],
         "period_type": f["period_type"], "start": str(f["start"]) if f["start"] else None, "end": str(f["end"]),
         "fiscal_year": fy, "fiscal_period": fp, "dims": f["dims"],
@@ -169,14 +205,15 @@ def build_comp(ticker: str, comps_dir: Path, vocab: dict, cache: Path, tol: int,
         check_unconvertible(read["unconvertible"], vocab_concepts, f"{ticker} {meta['accn']}")
         facts, inconsistent = group_tags(read["tags"])
         filings[form] = {"meta": meta, "facts": facts, "inconsistent": inconsistent, "read": read,
-                         "sha": hashlib.sha256(htm.read_bytes()).hexdigest()}
+                         "sha": hashlib.sha256(htm.read_bytes()).hexdigest(), "source_path": htm.as_posix()}
     chosen = choose_concepts(filings["10-K"]["facts"], vocab)
     idx = metric_index(chosen)
     rows, log_filings, missing = [], {}, []
     for form, fl in filings.items():
         accn = fl["meta"]["accn"]
         for f in fl["facts"]:
-            rows.append(to_row(f, fl["meta"], cik, fye, tol, metric_for(f, idx), fl["sha"], extractor))
+            rows.append(to_row(f, fl["meta"], cik, fye, tol, metric_for(f, idx), fl["sha"], extractor,
+                               fl["source_path"]))
         missing += missing_periods(fl["facts"], chosen, vocab, accn)
         rd = fl["read"]
         log_filings[accn] = {"form": form, "ix_nonfraction_tags": rd["ix_nonfraction"],
@@ -184,7 +221,8 @@ def build_comp(ticker: str, comps_dir: Path, vocab: dict, cache: Path, tol: int,
                              "tags_nil": rd["nil"], "tags_unconvertible_skipped": len(rd["unconvertible"]),
                              "unconvertible": sorted(rd["unconvertible"], key=lambda u: u["element_id"]),
                              "facts": len(fl["facts"]), "inconsistent_groups": len(fl["inconsistent"]),
-                             "inconsistent": fl["inconsistent"]}
+                             "inconsistent": fl["inconsistent"], "citation_text": text_check(fl["facts"]),
+                             "citations_ixbrl_context": sum(1 for f in fl["facts"] if not f.get("element_id"))}
     if len({r["fact_id"] for r in rows}) != len(rows):
         raise RuntimeError(f"{ticker}: duplicate fact_id")
     cf = json.loads((tdir / "companyfacts.json").read_text(encoding="utf-8"))
@@ -246,7 +284,12 @@ def main() -> None:
                                               for f in c["filings"].values()),
                    "missing_periods": sum(len(c["missing_periods"]) for c in comps_log.values()),
                    "tags_unconvertible_skipped": sum(f["tags_unconvertible_skipped"] for c in comps_log.values()
-                                                     for f in c["filings"].values())})
+                                                     for f in c["filings"].values()),
+                   **{f"citation_text_{k}": sum(f["citation_text"][k] for c in comps_log.values()
+                                                for f in c["filings"].values())
+                      for k in ("resolves", "not_numeric", "mismatched")},
+                   "citations_ixbrl_context": sum(f["citations_ixbrl_context"] for c in comps_log.values()
+                                                  for f in c["filings"].values())})
     Path(args.log).parent.mkdir(parents=True, exist_ok=True)
     Path(args.log).write_text(json.dumps(json_safe({"totals": totals, "comps": comps_log}), indent=1,
                                          sort_keys=True) + "\n", encoding="utf-8")

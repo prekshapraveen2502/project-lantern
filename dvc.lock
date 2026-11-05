@@ -1011,8 +1011,8 @@ stages:
       size: 73
     - path: src/facts/build.py
       hash: md5
-      md5: ed9f6f57d3cde24deabb60276af7b56f
-      size: 13239
+      md5: e350707db3291cf850200fdfa117d9cb
+      size: 15930
     - path: src/facts/periods.py
       hash: md5
       md5: bde1ab85d5ceab04eaad00007d00bcc4
@@ -1027,8 +1027,8 @@ stages:
       size: 3129
     - path: src/facts/xbrl_read.py
       hash: md5
-      md5: 7f85dbb02e1f39f8c2a6b4ff93810d43
-      size: 7112
+      md5: 9a4f1de38291f344def82fecd61d4149
+      size: 7691
     - path: src/ingest/runstats.py
       hash: md5
       md5: e2af55a01181e066ffcb1c32a9bae37a
@@ -1049,9 +1049,9 @@ stages:
     outs:
     - path: data/facts/build_log.json
       hash: md5
-      md5: 10ec02de5e751cef9684a2f9b9594888
-      size: 56220
+      md5: 836f6de5a9b0012767eca89d4d41df41
+      size: 58950
     - path: data/facts/facts.duckdb
       hash: md5
-      md5: adc5146e047a8a3722284f228dd846ab
-      size: 3682304
+      md5: e15d913e92779722e351bfa46e875396
+      size: 6041600
