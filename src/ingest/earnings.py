@@ -14,6 +14,23 @@ from src.ingest import edgar
 from src.ingest.runstats import RunStats
 
 
+def pick_release(docs: list[dict], label: str) -> tuple[dict, dict, str]:
+    """(8-K document, earnings release, its SGML type). The release is the EX-99.1 exhibit; if the filer
+    tagged it plain EX-99 instead (Shift4 0001794669-26-000042, file ex991q2.htm), the filing's only
+    EX-99 document is used, with a warning. No 8-K, or no EX-99.1 and not exactly one EX-99, fails."""
+    main_doc = [d for d in docs if d["type"].upper() == "8-K"]
+    if not main_doc:
+        raise RuntimeError(f"{label}: missing the 8-K document")
+    ex991 = [d for d in docs if d["type"].upper() == "EX-99.1"]
+    if ex991:
+        return main_doc[0], ex991[0], "EX-99.1"
+    ex99 = [d for d in docs if d["type"].upper() == "EX-99"]
+    if len(ex99) != 1:
+        raise RuntimeError(f"{label}: no EX-99.1 exhibit and {len(ex99)} EX-99 documents (need exactly one)")
+    print(f"[WARN] {label}: no EX-99.1 exhibit; using the only EX-99 document {ex99[0]['filename']}")
+    return main_doc[0], ex99[0], "EX-99"
+
+
 def ingest_ticker(ticker: str, cik: str, params: dict, out: Path) -> list[Path]:
     c = params["comps"]
     n = c["earnings_8k_quarters"]
@@ -28,19 +45,15 @@ def ingest_ticker(ticker: str, cik: str, params: dict, out: Path) -> list[Path]:
     filing_dirs = []
     for f in hits:
         raw = edgar.full_submission(cik, f["accn"], params).decode("utf-8", errors="replace")
-        docs = edgar.sgml_documents(raw)
-        main_doc = [d for d in docs if d["type"].upper() == "8-K"]
-        ex991 = [d for d in docs if d["type"].upper() == "EX-99.1"]
-        if not main_doc or not ex991:
-            raise RuntimeError(f"{ticker} {f['accn']}: missing the 8-K document or the EX-99.1 exhibit")
+        main_doc, release, ex99_type = pick_release(edgar.sgml_documents(raw), f"{ticker} {f['accn']}")
 
         fdir = out / ticker / f["accn"]
         fdir.mkdir(parents=True, exist_ok=True)
-        for d in (main_doc[0], ex991[0]):
+        for d in (main_doc, release):
             (fdir / d["filename"]).write_text(d["text"], encoding="utf-8", newline="\n")
-        meta = {**f, "ticker": ticker, "cik": cik, "ex99_1": ex991[0]["filename"]}
+        meta = {**f, "ticker": ticker, "cik": cik, "ex99_1": release["filename"], "ex99_type": ex99_type}
         (fdir / "filing.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-        print(f"[INFO] {ticker} 8-K {f['date']} items {f['items']} EX-99.1 {ex991[0]['filename']}")
+        print(f"[INFO] {ticker} 8-K {f['date']} items {f['items']} {ex99_type} {release['filename']}")
         filing_dirs.append(fdir)
     return filing_dirs
 
