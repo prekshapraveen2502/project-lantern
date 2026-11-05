@@ -80,6 +80,7 @@ def read_filing(htm: Path, cache_dir: Path) -> dict:
             "concept": str(f.qname), "value": float(f.xValue), "decimals": f.decimals,
             "scale": int(f.get("scale") or 0), "unit": unit_measure([str(q) for q in num], [str(q) for q in den]),
             "unit_ref": f.unitID, "context_ref": f.contextID, "element_id": f.id, "order": order,
+            "text": "".join(f.itertext()).strip(), "sign": f.get("sign"),   # nested tags: text is in the inner tag
             "period_type": "instant" if start is None else "duration", "start": start, "end": end,
             "dims": json.dumps(dims, sort_keys=True),
         })
@@ -88,6 +89,15 @@ def read_filing(htm: Path, cache_dir: Path) -> dict:
         raise RuntimeError(f"{htm}: loaded {len(numeric)} != stored {len(tags)} + nil {nil} + "
                            f"unconvertible {len(unconvertible)}")
     return {"tags": tags, "loaded": len(numeric), "ix_nonfraction": n_ix, "nil": nil, "unconvertible": unconvertible}
+
+
+def citation_value(text: str, scale: int, sign: str | None) -> float | None:
+    """The number a reader sees, back in base units: (-1 if sign == "-" else 1) x text x 10^scale.
+    None when the text is not a plain number (e.g. a dash for zero), so the check cannot apply."""
+    s = text.replace(",", "").replace(" ", "")
+    if not re.fullmatch(r"(\d+(\.\d*)?|\.\d+)", s):
+        return None
+    return (-1.0 if sign == "-" else 1.0) * float(s) * 10 ** scale
 
 
 def check_unconvertible(unconvertible: list[dict], vocab_concepts: set[str], where: str) -> None:

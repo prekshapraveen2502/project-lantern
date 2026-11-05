@@ -31,6 +31,19 @@ def test_part1_no_claim_tier_value_in_facts(con):
     assert con.execute("SELECT count(*) FROM facts WHERE tier IN (4, 5)").fetchone()[0] == 0
 
 
+def test_part1_xbrl_citations_open_and_give_back_the_value(con):
+    """Every tier-1 citation names a local file that exists and an EDGAR URL; the build log's citation-text
+    check (sign x text x 10^scale = value) found no mismatch."""
+    import json
+    rows = con.execute("SELECT citation FROM facts WHERE source_type = 'edgar_xbrl'").fetchall()
+    cits = [json.loads(r[0]) for r in rows]
+    assert {c["kind"] for c in cits} <= {"ixbrl_element", "ixbrl_context"}
+    assert all((ROOT / c["source_path"]).exists() for c in {c["source_path"]: c for c in cits}.values())
+    assert all(c["url"].startswith("https://www.sec.gov/Archives/edgar/data/") for c in cits)
+    totals = json.loads((ROOT / "data" / "facts" / "build_log.json").read_text())["totals"]
+    assert totals["citation_text_mismatched"] == 0
+
+
 def test_part0_every_comparable_has_at_least_8_statement_metrics(con):
     """Brief Part 0: "Every comparable has facts for at least 8 of the vocabulary's financial-statement metrics"."""
     from src.facts.vocab import load_vocab
