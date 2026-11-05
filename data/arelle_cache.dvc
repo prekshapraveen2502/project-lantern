@@ -1,0 +1,6 @@
+outs:
+- md5: fe82e6b81108e6876234c7e0cff16121.dir
+  size: 12639905
+  nfiles: 82
+  hash: md5
+  path: arelle_cache
