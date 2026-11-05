@@ -1,0 +1,5 @@
+outs:
+- md5: 08ee72ade5d45864f490f7be70b296be
+  size: 73
+  hash: md5
+  path: canaries_visible.json
