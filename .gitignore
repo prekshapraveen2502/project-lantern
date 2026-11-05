@@ -22,6 +22,8 @@ __pycache__/
 # --- Case Study 2 ---
 # confidential data room: tracked by DVC only, never Git
 /data/dataroom/*/raw/
+# ingest_dataroom outputs hold the data room's text: never Git
+/data/dataroom/*/export/
 # record/replay caches: tracked by DVC
 /data/llm_cache/
 /data/embed_cache/
