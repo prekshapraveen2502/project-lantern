@@ -64,6 +64,22 @@ def test_xbrl_concepts_only_where_decided():
     assert VOCAB["metrics"]["shares_outstanding"]["xbrl_dims"] == ["us-gaap:StatementClassOfStockAxis"]
 
 
+def test_sign_field():
+    """Costs are stored positive (XBRL's convention); genuinely signed metrics keep their sign."""
+    cost = {n for n, m in VOCAB["metrics"].items() if m.get("sign") == "cost"}
+    assert cost == {"cost_of_revenue", "operating_expenses", "d_and_a", "share_based_comp", "interest_expense",
+                    "capex", "pass_through_costs"}
+    for n in ("income_tax", "net_income", "operating_cash_flow"):
+        assert VOCAB["metrics"][n].get("sign", "signed") == "signed"
+
+
+def test_period_field():
+    instant = {n for n, m in VOCAB["metrics"].items() if m["period"] == "instant"}
+    assert instant == {"cash", "short_term_investments", "total_debt", "debt_component", "preferred_stock",
+                       "noncontrolling_interest", "total_assets", "stockholders_equity", "shares_outstanding",
+                       "arr", "active_customers", "headcount"}
+
+
 @pytest.mark.parametrize("label,metric", KESTREL_ROWS)
 def test_kestrel_rows_map_as_decided(label, metric):
     assert match_line(label, VOCAB) == metric

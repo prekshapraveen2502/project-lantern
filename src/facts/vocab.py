@@ -25,6 +25,10 @@ def load_vocab(path: Path | str = DEFAULT_PATH) -> dict:
             errs.append(f"{name}: kind {m.get('kind')!r} not in {sorted(KINDS)}")
         if m.get("unit_type") not in UNIT_TYPES:
             errs.append(f"{name}: unit_type {m.get('unit_type')!r} not in {sorted(UNIT_TYPES)}")
+        if m.get("period") not in ("instant", "duration"):
+            errs.append(f"{name}: period must be instant or duration")
+        if m.get("sign", "signed") not in ("cost", "signed"):
+            errs.append(f"{name}: sign must be cost or signed")
         if m.get("xbrl_select", "first") not in ("first", "all"):
             errs.append(f"{name}: xbrl_select must be first or all")
         if m.get("xbrl") and m.get("kind") in NO_XBRL_KINDS:
