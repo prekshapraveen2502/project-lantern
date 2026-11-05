@@ -202,3 +202,35 @@ stages:
       - download.user_agent_email
     outs:
       - data/earnings
+
+  ingest_dataroom:
+    # Kestrel only until deal_a/deal_b are generated; then list them in --deals, deps and outs
+    cmd: python -m src.ingest.dataroom --root data/dataroom --deals kestrel
+    deps:
+      - src/ingest/__init__.py
+      - src/ingest/dataroom.py
+      - src/ingest/records.py
+      - src/ingest/runstats.py
+      - src/parse_text.py
+      - src/layout.py
+      - src/tables.py
+      - src/docling_parse.py
+      - src/managed/fallback.py
+      - src/managed/textract.py
+      - src/managed/cache.py
+      - src/managed/blocks.py
+      - data/managed
+      - data/dataroom/variant.json
+      - data/dataroom/kestrel/raw
+    params:
+      - ingest.dataroom_tiers
+      - ingest.ocr_line_overlap
+      - ingest.ocr_para_gap_ratio
+      - text
+      - ocr
+      - managed
+      - layout
+      - tables
+      - docling
+    outs:
+      - data/dataroom/kestrel/export
