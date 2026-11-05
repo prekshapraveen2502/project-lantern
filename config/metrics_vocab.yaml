@@ -1,0 +1,266 @@
+# Part 1 item 1: controlled vocabulary. Decisions of 2026-11-05 (DECISIONS.md, "Part 1 (fact store)").
+#
+# Each metric has:
+#   kind            statement | revenue_build | derived | ebitda_bridge | kpi
+#   unit_type       currency | percent (stored as a fraction, 0.168 = 16.8%) | ratio (multiples) | count
+#   xbrl            ordered concept list. xbrl_select: first (default) = the first concept the company's latest
+#                   10-K reports (no dims) is used for every period; a period where it is missing is logged.
+#                   xbrl_select: all = every listed concept present is its own fact (debt_component).
+#   xbrl_dims       axes allowed when the filer reports no undimensioned value (shares by class)
+#   dataroom_lines  anchored regex patterns, matched case-insensitively against the normalised row label.
+#                   Written for Kestrel only; unmapped rows in new data rooms are logged and fixed then.
+#   synonyms        wording for item 5 claim extraction (kept conservative)
+# Nothing is computed in Part 1: derived metrics are calculated in Part 6 (the EBITDA formula is stated there),
+# but a seller-reported line for a derived metric (e.g. "Net take rate") is stored as a tier-3 fact.
+
+normalise:                       # decisions 3 and 4 (CS1 label_map convention + data-room prefixes)
+  straight_apostrophes: true
+  lowercase: true
+  collapse_whitespace: true
+  strip_prefixes: ["+", "add:", "less:", "of which:"]
+  strip_trailing_colon: true
+
+metrics:
+
+  # ---- statement: XBRL concepts (tier 1) and data-room lines (tier 3) ----
+  revenue:
+    kind: statement
+    unit_type: currency
+    description: GAAP top line as filed (net revenue for a payments company); gross revenue is gross_revenue
+    xbrl: [us-gaap:Revenues, us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax,
+           us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax]
+    dataroom_lines: ['^(net|total) revenue$', '^revenue$']
+    synonyms: [revenue, net revenue, total revenue]
+  cost_of_revenue:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:CostOfRevenue, us-gaap:CostOfGoodsAndServicesSold]
+    synonyms: [cost of revenue, cost of sales]
+  gross_profit:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:GrossProfit]
+    synonyms: [gross profit]
+  operating_expenses:
+    kind: statement
+    unit_type: currency
+    description: GAAP operating expenses; a data-room "operating expenses (excl. D&A)" line is not this metric
+    xbrl: [us-gaap:OperatingExpenses]
+    synonyms: [operating expenses, opex]
+  operating_income:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:OperatingIncomeLoss]
+    synonyms: [operating income, operating loss, income from operations]
+  net_income:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:NetIncomeLoss]
+    synonyms: [net income, net loss]
+  d_and_a:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:DepreciationDepletionAndAmortization, us-gaap:DepreciationAndAmortization,
+           us-gaap:DepreciationAmortizationAndAccretionNet]
+    synonyms: [depreciation and amortization, d&a]
+  share_based_comp:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:ShareBasedCompensation, us-gaap:AllocatedShareBasedCompensationExpense]
+    dataroom_lines: ['^stock-based compensation$']
+    synonyms: [stock-based compensation, share-based compensation, sbc]
+  interest_expense:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:InterestExpense, us-gaap:InterestExpenseNonoperating, us-gaap:InterestExpenseDebt]
+    synonyms: [interest expense]
+  income_tax:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:IncomeTaxExpenseBenefit]
+    synonyms: [income tax expense, provision for income taxes]
+  cash:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:CashAndCashEquivalentsAtCarryingValue]
+    dataroom_lines: ['^cash and (cash )?equivalents$']
+    synonyms: [cash and cash equivalents, cash]
+  short_term_investments:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:ShortTermInvestments, us-gaap:AvailableForSaleSecuritiesDebtSecuritiesCurrent,
+           us-gaap:MarketableSecuritiesCurrent]
+    synonyms: [short-term investments, marketable securities]
+  total_debt:
+    kind: statement
+    unit_type: currency
+    description: a debt total the filer itself reports; components are debt_component, summed only in Part 6
+    xbrl: [us-gaap:LongTermDebt, us-gaap:LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities]
+    synonyms: [total debt]
+  debt_component:
+    kind: statement
+    unit_type: currency
+    description: each reported debt component is its own fact, told apart by its concept or data-room line
+    xbrl_select: all
+    xbrl: [us-gaap:ConvertibleDebtCurrent, us-gaap:ConvertibleDebtNoncurrent, us-gaap:LongTermDebtCurrent,
+           us-gaap:LongTermDebtNoncurrent, us-gaap:LongTermDebtAndCapitalLeaseObligations,
+           us-gaap:LongTermDebtAndCapitalLeaseObligationsCurrent, us-gaap:LongTermLineOfCredit,
+           us-gaap:OtherLongTermDebtCurrent, us-gaap:OtherLongTermDebtNoncurrent, us-gaap:SecuredDebtCurrent]
+    dataroom_lines: ['^term loan\b']
+    synonyms: [term loan, convertible notes, credit facility]
+  preferred_stock:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:PreferredStockValue]
+    synonyms: [preferred stock]
+  noncontrolling_interest:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:MinorityInterest]
+    synonyms: [noncontrolling interest, minority interest]
+  total_assets:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:Assets]
+    synonyms: [total assets]
+  stockholders_equity:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:StockholdersEquity]
+    synonyms: [stockholders' equity, shareholders' equity]
+  operating_cash_flow:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:NetCashProvidedByUsedInOperatingActivities]
+    synonyms: [operating cash flow, cash from operations]
+  capex:
+    kind: statement
+    unit_type: currency
+    xbrl: [us-gaap:PaymentsToAcquirePropertyPlantAndEquipment]
+    synonyms: [capital expenditures, capex]
+  shares_outstanding:
+    kind: statement
+    unit_type: count
+    description: one fact per share class (with its dims) when the filer reports no undimensioned value
+    xbrl: [dei:EntityCommonStockSharesOutstanding]
+    xbrl_dims: [us-gaap:StatementClassOfStockAxis]
+    synonyms: [shares outstanding]
+
+  # ---- revenue_build: data room (no XBRL) ----
+  gross_revenue:
+    kind: revenue_build
+    unit_type: currency
+    description: revenue before pass-through interchange and network fees
+    dataroom_lines: ['^gross revenue$']
+    synonyms: [gross revenue]
+  pass_through_costs:
+    kind: revenue_build
+    unit_type: currency
+    dataroom_lines: ['^pass-through costs\b']
+    synonyms: [pass-through costs, interchange and network fees]
+  subscription_revenue:
+    kind: revenue_build
+    unit_type: currency
+    dataroom_lines: ['^subscription( revenue)?$']
+    synonyms: [subscription revenue]
+  transaction_revenue:
+    kind: revenue_build
+    unit_type: currency
+    dataroom_lines: ['^transaction( revenue)?$']
+    synonyms: [transaction revenue]
+
+  # ---- derived: calculated in Part 6 (tier "derived"); a seller-reported line is stored as tier 3 ----
+  revenue_growth:
+    kind: derived
+    unit_type: percent
+    synonyms: [revenue growth, net revenue growth]
+  gross_margin:
+    kind: derived
+    unit_type: percent
+    synonyms: [gross margin]
+  ebitda:
+    kind: derived
+    unit_type: currency
+    description: computed in Part 6, which states the EBITDA definition; the seller's line is reported_ebitda
+    synonyms: [ebitda]
+  ebitda_margin:
+    kind: derived
+    unit_type: percent
+    synonyms: [ebitda margin]
+  take_rate:
+    kind: derived
+    unit_type: percent
+    description: net revenue / TPV
+    dataroom_lines: ['^net take rate\b']
+    synonyms: [take rate, net take rate]
+  subscription_share:
+    kind: derived
+    unit_type: percent
+    description: subscription revenue / net revenue
+    synonyms: [subscription share, recurring revenue share]
+
+  # ---- ebitda_bridge: data room (no XBRL) ----
+  reported_ebitda:
+    kind: ebitda_bridge
+    unit_type: currency
+    dataroom_lines: ['^reported ebitda\b']
+    synonyms: [reported ebitda]
+  adjusted_ebitda:
+    kind: ebitda_bridge
+    unit_type: currency
+    description: QoE-adjusted EBITDA (add-backs the QoE accepts)
+    dataroom_lines: ['^qoe[- ]adjusted ebitda$']
+    synonyms: [adjusted ebitda]
+  management_adjusted_ebitda:
+    kind: ebitda_bridge
+    unit_type: currency
+    description: management's adjusted EBITDA, including add-backs the QoE does not accept
+    dataroom_lines: ['^management[- ]adjusted ebitda$']
+    synonyms: [management-adjusted ebitda]
+
+  # ---- kpi: data room only (no XBRL) ----
+  tpv:
+    kind: kpi
+    unit_type: currency
+    dataroom_lines: ['^total payment volume\b']
+    synonyms: [total payment volume, tpv, payment volume]
+  arr:
+    kind: kpi
+    unit_type: currency
+    dataroom_lines: ['^subscription arr\b', '^arr\b']
+    synonyms: [arr, annual recurring revenue]
+  nrr:
+    kind: kpi
+    unit_type: percent
+    dataroom_lines: ['^net revenue retention\b']
+    synonyms: [nrr, net revenue retention]
+  gross_logo_churn:
+    kind: kpi
+    unit_type: percent
+    synonyms: [gross logo churn, logo churn]
+  active_customers:
+    kind: kpi
+    unit_type: count
+    dataroom_lines: ['^active (paying )?customers$']
+    synonyms: [active customers, active paying customers]
+  fraud_loss_rate:
+    kind: kpi
+    unit_type: percent
+    description: fraud and credit losses as a share of TPV
+    dataroom_lines: ['^fraud and credit losses\b']
+    synonyms: [fraud loss rate, fraud and credit losses]
+  top1_customer_share:
+    kind: kpi
+    unit_type: percent
+    description: share of net revenue from the largest customer or partner ("partner" is a synonym)
+    dataroom_lines: ['^top (partner|customer) share\b']
+    synonyms: [top customer share, top partner share, largest customer, largest partner]
+  top10_customer_share:
+    kind: kpi
+    unit_type: percent
+    dataroom_lines: ['^top 10 customers? share\b']
+    synonyms: [top 10 customers share, top ten customers]
+  headcount:
+    kind: kpi
+    unit_type: count
+    synonyms: [headcount, employees]
