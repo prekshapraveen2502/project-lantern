@@ -729,8 +729,8 @@ stages:
       size: 369
     - path: src/ingest/comps.py
       hash: md5
-      md5: e763c0b8e9befb2f41ac0f4e3cc39c87
-      size: 6089
+      md5: dcfa5b8626b2453b9c219a862c8fd248
+      size: 6190
     - path: src/ingest/edgar.py
       hash: md5
       md5: 73c3916f7513f781260a76a2c8be7ae8
@@ -755,8 +755,14 @@ stages:
         - 10-K
         - 10-Q
         comps.tickers:
-        - AAPL
-        - HPQ
+        - BILL
+        - FLYW
+        - PAYO
+        - FOUR
+        - TOST
+        - GPN
+        - PYPL
+        - XYZ
         docling:
           do_ocr: false
           table_mode: accurate
@@ -767,9 +773,9 @@ stages:
     outs:
     - path: data/edgar_comps
       hash: md5
-      md5: 667a874359dfc78e2b714fe42b11fb20.dir
-      size: 98766891
-      nfiles: 401
+      md5: 37426c31ce9033bb4681cae94534731f.dir
+      size: 469283887
+      nfiles: 1846
   ingest_earnings:
     cmd: python -m src.ingest.earnings --output data/earnings
     deps:
@@ -779,8 +785,8 @@ stages:
       size: 369
     - path: src/ingest/earnings.py
       hash: md5
-      md5: f7f2740acc3fd1dcb13f6b98d8e35132
-      size: 2860
+      md5: 39a4a6aa45a95ab4ed10955f87132a55
+      size: 3664
     - path: src/ingest/edgar.py
       hash: md5
       md5: 73c3916f7513f781260a76a2c8be7ae8
@@ -795,16 +801,22 @@ stages:
         comps.earnings_8k_min_gap_days: 45
         comps.earnings_8k_quarters: 4
         comps.tickers:
-        - AAPL
-        - HPQ
+        - BILL
+        - FLYW
+        - PAYO
+        - FOUR
+        - TOST
+        - GPN
+        - PYPL
+        - XYZ
         download.user_agent_email: praveen.p@northeastern.edu
         download.user_agent_name: NEU-DAMG7245-Fall26-Team1
     outs:
     - path: data/earnings
       hash: md5
-      md5: 375a27a1b4a6eb8860c459542e607e46.dir
-      size: 3444829
-      nfiles: 24
+      md5: ab937350caa112008a5d43f80f6720db.dir
+      size: 18331726
+      nfiles: 96
   ingest_dataroom:
     cmd: python -m src.ingest.dataroom --root data/dataroom --deals kestrel
     deps:

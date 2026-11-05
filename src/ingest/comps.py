@@ -70,6 +70,7 @@ def ingest_ticker(ticker: str, cik: str, params: dict, out: Path, conv) -> list[
     (tdir / "companyfacts.json").write_text(json.dumps(facts), encoding="utf-8")
 
     subs = edgar.submissions(cik, params)
+    (tdir / "submissions.json").write_text(json.dumps(subs), encoding="utf-8")   # SIC, address, FYE
     filing_dirs = []
     for form in c["forms"]:
         f = edgar.latest_filing(subs, form, c["after"], c["before"])
