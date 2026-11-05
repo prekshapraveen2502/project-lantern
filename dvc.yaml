@@ -234,3 +234,24 @@ stages:
       - docling
     outs:
       - data/dataroom/kestrel/export
+
+  facts:
+    cmd: python -m src.facts.build --out data/facts/facts.duckdb --log data/facts/build_log.json
+    deps:
+      - src/facts/__init__.py
+      - src/facts/schema.py
+      - src/facts/periods.py
+      - src/facts/xbrl_read.py
+      - src/facts/build.py
+      - src/facts/vocab.py
+      - src/ingest/runstats.py
+      - config/metrics_vocab.yaml
+      - data/edgar_comps
+      - data/arelle_cache
+    params:
+      - comps.tickers
+      - facts.fye_tolerance_days
+      - facts.arelle_cache
+    outs:
+      - data/facts/facts.duckdb
+      - data/facts/build_log.json

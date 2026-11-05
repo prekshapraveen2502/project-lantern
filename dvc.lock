@@ -987,3 +987,71 @@ stages:
       md5: 7223a2684d769bb7f7884190b49eca42.dir
       size: 3620823
       nfiles: 99
+  facts:
+    cmd: python -m src.facts.build --out data/facts/facts.duckdb --log 
+      data/facts/build_log.json
+    deps:
+    - path: config/metrics_vocab.yaml
+      hash: md5
+      md5: 038017193dc8034200e183f5b536fcc7
+      size: 11688
+    - path: data/arelle_cache
+      hash: md5
+      md5: fe82e6b81108e6876234c7e0cff16121.dir
+      size: 12639905
+      nfiles: 82
+    - path: data/edgar_comps
+      hash: md5
+      md5: 37426c31ce9033bb4681cae94534731f.dir
+      size: 469283887
+      nfiles: 1846
+    - path: src/facts/__init__.py
+      hash: md5
+      md5: 74fc57814a4229cf3ccfac6c77a3b65c
+      size: 73
+    - path: src/facts/build.py
+      hash: md5
+      md5: ed9f6f57d3cde24deabb60276af7b56f
+      size: 13239
+    - path: src/facts/periods.py
+      hash: md5
+      md5: bde1ab85d5ceab04eaad00007d00bcc4
+      size: 2439
+    - path: src/facts/schema.py
+      hash: md5
+      md5: c84127b29cd9eeadd9bcac48eb19c78f
+      size: 3455
+    - path: src/facts/vocab.py
+      hash: md5
+      md5: b7a2a2ca9a1ba4d7597c0c38012dfcc5
+      size: 3129
+    - path: src/facts/xbrl_read.py
+      hash: md5
+      md5: 7f85dbb02e1f39f8c2a6b4ff93810d43
+      size: 7112
+    - path: src/ingest/runstats.py
+      hash: md5
+      md5: e2af55a01181e066ffcb1c32a9bae37a
+      size: 5088
+    params:
+      params.yaml:
+        comps.tickers:
+        - BILL
+        - FLYW
+        - PAYO
+        - FOUR
+        - TOST
+        - GPN
+        - PYPL
+        - XYZ
+        facts.arelle_cache: data/arelle_cache
+        facts.fye_tolerance_days: 7
+    outs:
+    - path: data/facts/build_log.json
+      hash: md5
+      md5: 10ec02de5e751cef9684a2f9b9594888
+      size: 56220
+    - path: data/facts/facts.duckdb
+      hash: md5
+      md5: adc5146e047a8a3722284f228dd846ab
+      size: 3682304
