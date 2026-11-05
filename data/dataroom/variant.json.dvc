@@ -1,0 +1,5 @@
+outs:
+- md5: ea90f84c1c36e2f4c414888b97763ec2
+  size: 299
+  hash: md5
+  path: variant.json
