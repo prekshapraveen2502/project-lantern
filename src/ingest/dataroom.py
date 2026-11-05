@@ -23,6 +23,7 @@ import argparse
 import csv
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import copy
@@ -37,6 +38,9 @@ from src.ingest.runstats import RunStats
 
 SRC = Path(__file__).resolve().parents[1]           # src/, where the CS1 scripts live
 SUFFIXES = {".pdf", ".xlsx", ".txt"}
+# pdfplumber writes a glyph with no Unicode mapping as "(cid:N)"; its digits would read as a number
+CID = re.compile(r"\(cid:\d+\) ?")
+TEXT_TYPES = ("Text", "Title", "List")       # skipped when empty; Figure and Table blocks never are
 
 
 def sha256_of(path: Path) -> str:
@@ -146,6 +150,58 @@ def ocr_blocks(words: list[dict], min_overlap: float, gap_ratio: float) -> list[
             blocks.append({"bbox": box, "lines": [ln]})
     return blocks
 
+def remove_cid(value):
+    """(value without "(cid:N)" tokens, True if any was removed). Non-strings pass through."""
+    if isinstance(value, str) and CID.search(value):
+        return CID.sub("", value), True
+    return value, False
+
+
+def clean_cells(rows: list[list]) -> tuple[list[list], bool]:
+    out, removed = [], False
+    for row in rows:
+        cells = []
+        for cell in row:
+            cell, hit = remove_cid(cell)
+            cells.append(cell)
+            removed |= hit
+        out.append(cells)
+    return out, removed
+
+
+def clean_and_filter(records: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Remove "(cid:N)" tokens from record text and table cells (flag unmapped_glyphs_removed), then
+    skip Text/Title/List blocks whose text is empty after cleaning:
+      zero_size_glyph_only   the text was only unmapped glyphs and the bbox has zero width or height
+      empty_after_cleaning   any other such block, whatever its bbox
+    Figure and Table blocks are never skipped for empty text. Returns (kept, skipped)."""
+    kept, skipped = [], []
+    for rec in records:
+        original = rec.get("text")
+        rec["text"], in_text = remove_cid(original)
+        table, in_cells = rec.get("table") or {}, False
+        if table.get("columns") is not None:          # xlsx sheet header row
+            cols, in_cells = clean_cells([table["columns"]])
+            table["columns"] = cols[0]
+        if table.get("rows") is not None:             # xlsx rows and CS1 layout (Camelot) rows
+            table["rows"], hit = clean_cells(table["rows"])
+            in_cells |= hit
+        if in_text or in_cells:
+            rec["ingest_flags"].append("unmapped_glyphs_removed")
+
+        if rec["block_type"] in TEXT_TYPES and not (rec["text"] or "").strip():
+            bbox = rec.get("bbox")
+            zero = bbox is not None and (bbox[2] <= bbox[0] or bbox[3] <= bbox[1])
+            reason = "zero_size_glyph_only" if (in_text and zero) else "empty_after_cleaning"
+            print(f"[WARN] skipped block {rec['doc_id']} p{rec['page']} {rec['block_id']} ({reason}): "
+                  f"bbox {bbox}, text {original!r}")
+            skipped.append({"doc_id": rec["doc_id"], "page": rec["page"], "block_id": rec["block_id"],
+                            "reason": reason})
+            continue
+        kept.append(rec)
+    return kept, skipped
+
+
 def pdf_records(row, deal, company, work: Path, lpp: dict, ocr: dict, versions: dict) -> list[dict]:
     stem = row["stem"]
     with open(work / "parsed" / "ocr_log.csv", encoding="utf-8") as f:
@@ -180,14 +236,14 @@ def pdf_records(row, deal, company, work: Path, lpp: dict, ocr: dict, versions: 
         else:                       # text-layer page: CS1 layout blocks as they are
             for b in (b for b in blocks if b["page"] == n):
                 section = b["section"] or section
-                ocr = bool(b["ocr"])
+                is_ocr = bool(b["ocr"])     # not "ocr": that name is the params["ingest"] argument
                 rec = base_record(row, deal, company,
-                                  "tesseract" if ocr else "pdfplumber",
-                                  versions["tesseract"] if ocr else versions["pdfplumber"])
+                                  "tesseract" if is_ocr else "pdfplumber",
+                                  versions["tesseract"] if is_ocr else versions["pdfplumber"])
                 rec.update({"page": n, "section": b["section"], "block_id": b["block_id"],
                             "block_type": b["type"], "bbox": b["bbox"], "text": b["text"],
                             "table": b["table"] if b["type"] == "Table" else None,
-                            "ocr": ocr, "ocr_conf": b["ocr_conf"] if ocr else None,
+                            "ocr": is_ocr, "ocr_conf": b["ocr_conf"] if is_ocr else None,
                             "detector": b["model"] if b["source"] == "model" else b["source"],
                             "detector_score": b["score"], "figure_path": b["figure_path"],
                             "citation": {"kind": "pdf_bbox", "doc_id": row["accession"], "page": n,
@@ -306,6 +362,15 @@ def ingest_deal(deal: str, root: Path, out_root: Path, params: dict, company: st
                 records += txt_records(r, deal, company, raw / r["file"])
             else:
                 records += xlsx_records(r, deal, company, raw / r["file"])
+        records, skipped = clean_and_filter(records)
+        work.mkdir(parents=True, exist_ok=True)
+        with open(work / "skipped_blocks.csv", "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["doc_id", "page", "block_id", "reason"], lineterminator="\n")
+            w.writeheader()
+            w.writerows(skipped)
+        flagged = sum("unmapped_glyphs_removed" in rec["ingest_flags"] for rec in records)
+        print(f"[INFO] {deal}: {len(skipped)} block(s) skipped -> {work / 'skipped_blocks.csv'}; "
+              f"{flagged} record(s) flagged unmapped_glyphs_removed")
         s["units"] = write_jsonl(records, out / "records.jsonl")
         print(f"[INFO] {deal}: {s['units']} validated lantern/2.0 records -> {out / 'records.jsonl'}")
     return s["units"]
