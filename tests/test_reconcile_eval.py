@@ -38,8 +38,18 @@ def test_caught_exact_and_precision():
     s = score(KEY, OURS, align(KEY, OURS, DOCS))
     assert s["T-GROWTH"] == {"traps": 1, "caught": 1, "exact": 1, "flagged": 1, "tp": 1}
     assert s["T-NRR"] == {"traps": 1, "caught": 1, "exact": 0, "flagged": 1, "tp": 1}      # flagged, other status
-    assert s["T-PERIOD"] == {"traps": 1, "caught": 0, "exact": 0, "flagged": 1, "tp": 0}   # revenue flag is GROSSNET
+    assert s["T-PERIOD"] == {"traps": 1, "caught": 0, "exact": 0, "flagged": 1, "tp": 0}   # C-r aligned to no trap: FP
     assert set(s) == set(CATEGORIES)
+
+
+def test_a_flagged_claim_aligned_to_another_trap_is_not_a_false_positive():
+    grossnet = {"claim_id": "k_gross", "trap": "T-GROSSNET", "doc": "cim.pdf", "page": 3, "metric": "revenue",
+                "claim_value": 96.4e6, "expected_status": "definition_mismatch"}
+    true_claim = {"claim_id": "k_true", "trap": "true_claim", "doc": "cim.pdf", "page": 5, "metric": "revenue",
+                  "claim_value": 1.0, "expected_status": "match"}
+    claims = OURS + [ours("C-t", "DR-x-001", 5, "revenue", 1.0, "discrepancy")]
+    s = score(KEY + [grossnet, true_claim], claims, align(KEY + [grossnet, true_claim], claims, DOCS))
+    assert s["T-PERIOD"] == {"traps": 1, "caught": 0, "exact": 0, "flagged": 1, "tp": 0}   # C-r excluded; C-t is FP
 
 
 REPORT = ROOT / "reports" / "reconciliation.md"

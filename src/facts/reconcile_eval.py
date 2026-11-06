@@ -7,8 +7,9 @@ data/dataroom/{deal}/export/manifest.csv and data/dataroom/{deal}/answer_key.yam
 
 Alignment: a key claim is aligned to one of our claims with the same document, page and metric (the closest value
 if several). A status other than match and no_fact is a flag. Per category: recall (caught) = key traps whose aligned
-claim is flagged; recall (exact) = whose aligned claim has exactly the expected status; precision = among our flagged
-claims with the category's metric, the share aligned to that category's key trap. Keys compared by value only; the
+claim is flagged; recall (exact) = whose aligned claim has exactly the expected status; precision = TP / (TP + FP),
+TP = our flagged claims aligned to that category's key trap, FP = our flagged claims with the category's metric that
+are aligned to no key trap (T-*) at all. Keys compared by value only; the
 key's unit field is never used (DECISIONS 2026-11-05).
 """
 from __future__ import annotations
@@ -38,6 +39,11 @@ def align(key_claims: list[dict], ours: list[dict], doc_ids: dict[str, str]) -> 
 
 
 def score(key_claims: list[dict], ours: list[dict], aligned: dict) -> dict[str, dict]:
+    """Precision per category: true positives = our flagged claims aligned to this category's trap; false positives
+    = our flagged claims with the category's metric that are aligned to no key trap at all (a flagged claim aligned
+    to another category's trap is a correct catch, not a false positive here)."""
+    any_trap_ids = {aligned[k["claim_id"]]["claim_id"] for k in key_claims
+                    if str(k.get("trap", "")).startswith("T-") and aligned[k["claim_id"]]}
     res = {}
     for cat in CATEGORIES:
         traps = [k for k in key_claims if k.get("trap") == cat]
@@ -48,7 +54,8 @@ def score(key_claims: list[dict], ours: list[dict], aligned: dict) -> dict[str, 
                     aligned[k["claim_id"]]["status"] == k["expected_status"])
         flagged = [o for o in ours if o["metric"] in metrics and o["status"] in FLAGS]
         tp = sum(1 for o in flagged if o["claim_id"] in hit_ids)
-        res[cat] = {"traps": len(traps), "caught": caught, "exact": exact, "flagged": len(flagged), "tp": tp}
+        fp = sum(1 for o in flagged if o["claim_id"] not in any_trap_ids)
+        res[cat] = {"traps": len(traps), "caught": caught, "exact": exact, "flagged": tp + fp, "tp": tp}
     return res
 
 
@@ -88,8 +95,10 @@ def write_report(deal: str, root: Path, db: Path, disc: Path, build_log: Path, o
          "## Recall and precision on the trap categories reconciliation can catch", "",
          "A claim is *flagged* when its status is discrepancy, definition_mismatch or period_mismatch. Recall "
          "(caught): key traps whose aligned claim is flagged. Recall (exact): whose aligned claim has exactly the "
-         "expected status. Precision: among our flagged claims with the category's metric, the share aligned to "
-         "that category's trap. Alignment: same document, page and metric.", "",
+         "expected status. Precision: TP / (TP + FP), where TP = our flagged claims aligned to that category's trap "
+         "and FP = our flagged claims with the category's metric that are aligned to no key trap at all (a claim "
+         "aligned to another category's trap is a correct catch, not a false positive). Alignment: same document, "
+         "page and metric.", "",
          "| Category | Key traps | Recall (caught) | Recall (exact status) | Precision |", "|---|---|---|---|---|"]
     tot = {k: sum(v[k] for v in sc.values()) for k in ("traps", "caught", "exact", "flagged", "tp")}
     for cat in CATEGORIES:
