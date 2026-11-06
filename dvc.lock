@@ -1129,3 +1129,67 @@ stages:
       hash: md5
       md5: 895e5b22a0b70edd88113947598fcf07
       size: 6512
+  chunk:
+    cmd: python -m src.chunk --deals kestrel --out data/chunks
+    deps:
+    - path: config/metrics_vocab.yaml
+      hash: md5
+      md5: 598918472c07151b4ab188ed62f18c80
+      size: 11846
+    - path: data/dataroom/kestrel/export
+      hash: md5
+      md5: 191b5973e6fbacfe0a786ea61388b422.dir
+      size: 3621497
+      nfiles: 99
+    - path: data/dataroom/kestrel/raw
+      hash: md5
+      md5: 3bdc65b0619e46d40b6a04b3882b4321.dir
+      size: 767673
+      nfiles: 8
+    - path: data/edgar_comps
+      hash: md5
+      md5: 37426c31ce9033bb4681cae94534731f.dir
+      size: 469283887
+      nfiles: 1846
+    - path: data/tokenizer
+      hash: md5
+      md5: 6e1ba9ce5954493a873ce70c57cd1794.dir
+      size: 943395
+      nfiles: 4
+    - path: src/chunk.py
+      hash: md5
+      md5: c8ffa1ac0499116d679ba280d99f3778
+      size: 16574
+    params:
+      params.yaml:
+        chunk.grid:
+          block:
+          - - 200
+            - 0
+          - - 400
+            - 0
+          section:
+          - - 200
+            - 0
+          - - 400
+            - 0
+          recursive:
+          - - 200
+            - 20
+          - - 400
+            - 40
+        comps.tickers:
+        - BILL
+        - FLYW
+        - PAYO
+        - FOUR
+        - TOST
+        - GPN
+        - PYPL
+        - XYZ
+    outs:
+    - path: data/chunks
+      hash: md5
+      md5: 80ba3295af1087e07a1a89bb50a6b043.dir
+      size: 19805517
+      nfiles: 7

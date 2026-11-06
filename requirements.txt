@@ -49,3 +49,4 @@ openai==3.3.0
 anthropic==1.15.0
 # open embedding model, record mode only (replay never loads the weights)
 sentence-transformers==6.1.0
+tiktoken==0.14.0
