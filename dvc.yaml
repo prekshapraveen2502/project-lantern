@@ -299,3 +299,21 @@ stages:
       - comps.tickers
     outs:
       - data/chunks
+
+  embed:
+    cmd: python -m src.index --chunks data/chunks --index data/index
+    deps:
+      - src/index.py
+      - src/llm/client.py
+      - src/ingest/runstats.py
+      - data/chunks
+    params:
+      - chunk.grid
+      - llm.embed.hosted
+      - llm.embed.open
+      - llm.embed.open_revision
+      - budget.usd_cap_total
+    outs:
+      - data/index
+      - data/embed_cache:
+          persist: true

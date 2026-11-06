@@ -1193,3 +1193,56 @@ stages:
       md5: 80ba3295af1087e07a1a89bb50a6b043.dir
       size: 19805517
       nfiles: 7
+  embed:
+    cmd: python -m src.index --chunks data/chunks --index data/index
+    deps:
+    - path: data/chunks
+      hash: md5
+      md5: 80ba3295af1087e07a1a89bb50a6b043.dir
+      size: 19805517
+      nfiles: 7
+    - path: src/index.py
+      hash: md5
+      md5: 8141e22c3a7722adf8b162fdc9570e88
+      size: 7041
+    - path: src/ingest/runstats.py
+      hash: md5
+      md5: e2af55a01181e066ffcb1c32a9bae37a
+      size: 5088
+    - path: src/llm/client.py
+      hash: md5
+      md5: 2f828be174c1f55d9861f3d36c34bd84
+      size: 5524
+    params:
+      params.yaml:
+        budget.usd_cap_total: 5.0
+        chunk.grid:
+          block:
+          - - 200
+            - 0
+          - - 400
+            - 0
+          section:
+          - - 200
+            - 0
+          - - 400
+            - 0
+          recursive:
+          - - 200
+            - 20
+          - - 400
+            - 40
+        llm.embed.hosted: text-embedding-3-small
+        llm.embed.open: BAAI/bge-small-en-v1.5
+        llm.embed.open_revision: 5c38ec7c405ec4b44b94cc5a9bb96e735b38267a
+    outs:
+    - path: data/embed_cache
+      hash: md5
+      md5: 73e34a60d15a2de25ba31ab40e3e9c5d.dir
+      size: 83304192
+      nfiles: 20994
+    - path: data/index
+      hash: md5
+      md5: 0f0a0a0c595311579188e5e1ac4d45e0.dir
+      size: 392087727
+      nfiles: 62
