@@ -1,6 +1,6 @@
 outs:
-- md5: 7966be80a96b14d4c990af0c6e7fe41f.dir
-  size: 39681
+- md5: 16dfdf98a9454d9013124de41d0fa73c.dir
+  size: 40799
   nfiles: 13
   hash: md5
   path: bench
