@@ -1088,8 +1088,22 @@ stages:
       size: 6041600
   reconcile:
     cmd: python -m src.facts.reconcile --deals kestrel --db 
-      data/facts/facts.duckdb --out data/facts/discrepancies.jsonl
+      data/facts/facts.duckdb --out data/facts/discrepancies.jsonl && python -m 
+      src.facts.reconcile_eval --deal kestrel --out reports/reconciliation.md
     deps:
+    - path: data/dataroom/kestrel/answer_key.yaml
+      hash: md5
+      md5: 783865fbcf2a8039a838fb58d456d3d8
+      size: 12509
+    - path: data/dataroom/kestrel/export
+      hash: md5
+      md5: 191b5973e6fbacfe0a786ea61388b422.dir
+      size: 3621497
+      nfiles: 99
+    - path: data/facts/build_log.json
+      hash: md5
+      md5: 8c87361bdd073db85ddc58ccd3b73562
+      size: 63425
     - path: data/facts/facts.duckdb
       hash: md5
       md5: 806c72236e778a0a064fb1139afb7712
@@ -1098,6 +1112,10 @@ stages:
       hash: md5
       md5: cda10d3b436807aadd9efc9b8012165e
       size: 7606
+    - path: src/facts/reconcile_eval.py
+      hash: md5
+      md5: 752f823369e1cd73901fb655d7468992
+      size: 9723
     params:
       params.yaml:
         reconcile.high_gap_rel: 0.05
@@ -1107,3 +1125,7 @@ stages:
       hash: md5
       md5: ff1f2ef50fcef624a23069275380eaa2
       size: 2921
+    - path: reports/reconciliation.md
+      hash: md5
+      md5: b14963c785e5be2cb9ff56ed94098438
+      size: 6347

@@ -267,12 +267,20 @@ stages:
       - data/facts/build_log.json
 
   reconcile:
-    cmd: python -m src.facts.reconcile --deals kestrel --db data/facts/facts.duckdb --out data/facts/discrepancies.jsonl
+    cmd: >-
+      python -m src.facts.reconcile --deals kestrel --db data/facts/facts.duckdb --out data/facts/discrepancies.jsonl &&
+      python -m src.facts.reconcile_eval --deal kestrel --out reports/reconciliation.md
     deps:
       - src/facts/reconcile.py
+      - src/facts/reconcile_eval.py
       - data/facts/facts.duckdb
+      - data/facts/build_log.json
+      - data/dataroom/kestrel/answer_key.yaml
+      - data/dataroom/kestrel/export
     params:
       - reconcile.tolerance_rel
       - reconcile.high_gap_rel
     outs:
       - data/facts/discrepancies.jsonl
+      - reports/reconciliation.md:
+          cache: false
