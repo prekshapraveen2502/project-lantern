@@ -1086,3 +1086,24 @@ stages:
       hash: md5
       md5: 806c72236e778a0a064fb1139afb7712
       size: 6041600
+  reconcile:
+    cmd: python -m src.facts.reconcile --deals kestrel --db 
+      data/facts/facts.duckdb --out data/facts/discrepancies.jsonl
+    deps:
+    - path: data/facts/facts.duckdb
+      hash: md5
+      md5: 806c72236e778a0a064fb1139afb7712
+      size: 6041600
+    - path: src/facts/reconcile.py
+      hash: md5
+      md5: cda10d3b436807aadd9efc9b8012165e
+      size: 7606
+    params:
+      params.yaml:
+        reconcile.high_gap_rel: 0.05
+        reconcile.tolerance_rel: 0.01
+    outs:
+    - path: data/facts/discrepancies.jsonl
+      hash: md5
+      md5: ff1f2ef50fcef624a23069275380eaa2
+      size: 2921

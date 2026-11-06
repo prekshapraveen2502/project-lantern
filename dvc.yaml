@@ -265,3 +265,14 @@ stages:
     outs:
       - data/facts/facts.duckdb
       - data/facts/build_log.json
+
+  reconcile:
+    cmd: python -m src.facts.reconcile --deals kestrel --db data/facts/facts.duckdb --out data/facts/discrepancies.jsonl
+    deps:
+      - src/facts/reconcile.py
+      - data/facts/facts.duckdb
+    params:
+      - reconcile.tolerance_rel
+      - reconcile.high_gap_rel
+    outs:
+      - data/facts/discrepancies.jsonl
