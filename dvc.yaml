@@ -243,18 +243,25 @@ stages:
       - src/facts/periods.py
       - src/facts/xbrl_read.py
       - src/facts/xlsx_read.py
+      - src/facts/claims.py
       - src/facts/build.py
       - src/facts/vocab.py
       - src/ingest/runstats.py
+      - src/llm/client.py
       - config/metrics_vocab.yaml
       - data/edgar_comps
       - data/arelle_cache
       - data/dataroom/kestrel/raw
       - data/dataroom/kestrel/export
+      - data/llm_cache
     params:
       - comps.tickers
       - facts.fye_tolerance_days
       - facts.arelle_cache
+      - llm.provider
+      - llm.models.large
+      - llm.temperature
+      - budget.usd_cap_per_task
     outs:
       - data/facts/facts.duckdb
       - data/facts/build_log.json

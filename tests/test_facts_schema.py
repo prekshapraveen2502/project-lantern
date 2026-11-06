@@ -33,7 +33,7 @@ def insert(con, table, row):
 def claim(**over):
     row = {"claim_id": "C-000000000001", "deal_id": "kestrel", "entity_id": "kestrel", "claim_text": "x",
            "method": "text", "tier": 4, "source_type": "dataroom", "doc_id": "DR-kestrel-001",
-           "citation": "{}", "extractor": "test", "lineage": "{}"}
+           "citation": "{}", "extractor": "test", "lineage": "{}", "comparator": "eq"}
     row.update(over)
     return row
 

@@ -1015,22 +1015,31 @@ stages:
       md5: 37426c31ce9033bb4681cae94534731f.dir
       size: 469283887
       nfiles: 1846
+    - path: data/llm_cache
+      hash: md5
+      md5: 68158bdaad446b488ff5426aece8091c.dir
+      size: 7253
+      nfiles: 23
     - path: src/facts/__init__.py
       hash: md5
       md5: 74fc57814a4229cf3ccfac6c77a3b65c
       size: 73
     - path: src/facts/build.py
       hash: md5
-      md5: 8fcace3ae35b8a7e1ef55b5c7fd0c1a1
-      size: 17799
+      md5: 7416565d9ce0bc8fe342735a8afdd58c
+      size: 18814
+    - path: src/facts/claims.py
+      hash: md5
+      md5: 12ea67cc7f4792a9ec8e8b2d8f9a32f6
+      size: 13073
     - path: src/facts/periods.py
       hash: md5
       md5: bde1ab85d5ceab04eaad00007d00bcc4
       size: 2439
     - path: src/facts/schema.py
       hash: md5
-      md5: c84127b29cd9eeadd9bcac48eb19c78f
-      size: 3455
+      md5: 35c3004b781628603a0006c7fc995b93
+      size: 3938
     - path: src/facts/vocab.py
       hash: md5
       md5: 2aa0a138cc42577c4062b655a7bc48d3
@@ -1047,8 +1056,13 @@ stages:
       hash: md5
       md5: e2af55a01181e066ffcb1c32a9bae37a
       size: 5088
+    - path: src/llm/client.py
+      hash: md5
+      md5: 2f828be174c1f55d9861f3d36c34bd84
+      size: 5524
     params:
       params.yaml:
+        budget.usd_cap_per_task: 0.1
         comps.tickers:
         - BILL
         - FLYW
@@ -1060,12 +1074,15 @@ stages:
         - XYZ
         facts.arelle_cache: data/arelle_cache
         facts.fye_tolerance_days: 7
+        llm.models.large: gpt-4.1-mini
+        llm.provider: openai
+        llm.temperature: 0
     outs:
     - path: data/facts/build_log.json
       hash: md5
-      md5: 6ff0791299a87ea7432c153cd2821823
-      size: 62437
+      md5: 8c87361bdd073db85ddc58ccd3b73562
+      size: 63425
     - path: data/facts/facts.duckdb
       hash: md5
-      md5: dfd3d5072600ff57d679c48173997875
-      size: 5255168
+      md5: 806c72236e778a0a064fb1139afb7712
+      size: 6041600
