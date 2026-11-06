@@ -20,6 +20,9 @@ NO_XBRL_KINDS = {"revenue_build", "ebitda_bridge", "kpi"}
 def load_vocab(path: Path | str = DEFAULT_PATH) -> dict:
     vocab = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     errs = []
+    sp = vocab.get("scale_phrases")
+    if not isinstance(sp, dict) or not sp or not all(isinstance(k, str) and isinstance(v, int) for k, v in sp.items()):
+        errs.append("scale_phrases must map scale words to integer exponents")
     for name, m in vocab["metrics"].items():
         if m.get("kind") not in KINDS:
             errs.append(f"{name}: kind {m.get('kind')!r} not in {sorted(KINDS)}")

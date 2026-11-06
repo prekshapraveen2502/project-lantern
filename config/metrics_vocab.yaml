@@ -23,6 +23,11 @@ normalise:                       # decisions 3 and 4 (CS1 label_map convention +
   strip_prefixes: ["+", "add:", "less:", "of which:"]
   strip_trailing_colon: true
 
+scale_phrases:                   # item 4 seller xlsx: scale word -> power-of-ten exponent (DECISIONS 2026-11-05)
+  thousands: 3
+  millions: 6
+  billions: 9
+
 metrics:
 
   # ---- statement: XBRL concepts (tier 1) and data-room lines (tier 3) ----

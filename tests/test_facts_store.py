@@ -44,6 +44,13 @@ def test_part1_xbrl_citations_open_and_give_back_the_value(con):
     assert totals["citation_text_mismatched"] == 0
 
 
+def test_part1_dataroom_facts_are_tier_3_sheet_cells_and_xbrl_count_unchanged(con):
+    import json
+    rows = con.execute("SELECT tier, deal_id, citation FROM facts WHERE source_type = 'dataroom'").fetchall()
+    assert rows and all(t == 3 and d == "kestrel" and json.loads(c)["kind"] == "sheet_cell" for t, d, c in rows)
+    assert con.execute("SELECT count(*) FROM facts WHERE source_type = 'edgar_xbrl'").fetchone()[0] == 20762
+
+
 def test_part0_every_comparable_has_at_least_8_statement_metrics(con):
     """Brief Part 0: "Every comparable has facts for at least 8 of the vocabulary's financial-statement metrics"."""
     from src.facts.vocab import load_vocab
