@@ -822,8 +822,8 @@ stages:
     deps:
     - path: data/dataroom/kestrel/raw
       hash: md5
-      md5: 2616a8f977df23804c38cb472248a970.dir
-      size: 767689
+      md5: 3bdc65b0619e46d40b6a04b3882b4321.dir
+      size: 767673
       nfiles: 8
     - path: data/dataroom/variant.json
       hash: md5
@@ -984,6 +984,88 @@ stages:
     outs:
     - path: data/dataroom/kestrel/export
       hash: md5
-      md5: 7223a2684d769bb7f7884190b49eca42.dir
-      size: 3620823
+      md5: 191b5973e6fbacfe0a786ea61388b422.dir
+      size: 3621497
       nfiles: 99
+  facts:
+    cmd: python -m src.facts.build --deals kestrel --out data/facts/facts.duckdb
+      --log data/facts/build_log.json
+    deps:
+    - path: config/metrics_vocab.yaml
+      hash: md5
+      md5: 598918472c07151b4ab188ed62f18c80
+      size: 11846
+    - path: data/arelle_cache
+      hash: md5
+      md5: fe82e6b81108e6876234c7e0cff16121.dir
+      size: 12639905
+      nfiles: 82
+    - path: data/dataroom/kestrel/export
+      hash: md5
+      md5: 191b5973e6fbacfe0a786ea61388b422.dir
+      size: 3621497
+      nfiles: 99
+    - path: data/dataroom/kestrel/raw
+      hash: md5
+      md5: 3bdc65b0619e46d40b6a04b3882b4321.dir
+      size: 767673
+      nfiles: 8
+    - path: data/edgar_comps
+      hash: md5
+      md5: 37426c31ce9033bb4681cae94534731f.dir
+      size: 469283887
+      nfiles: 1846
+    - path: src/facts/__init__.py
+      hash: md5
+      md5: 74fc57814a4229cf3ccfac6c77a3b65c
+      size: 73
+    - path: src/facts/build.py
+      hash: md5
+      md5: 8fcace3ae35b8a7e1ef55b5c7fd0c1a1
+      size: 17799
+    - path: src/facts/periods.py
+      hash: md5
+      md5: bde1ab85d5ceab04eaad00007d00bcc4
+      size: 2439
+    - path: src/facts/schema.py
+      hash: md5
+      md5: c84127b29cd9eeadd9bcac48eb19c78f
+      size: 3455
+    - path: src/facts/vocab.py
+      hash: md5
+      md5: 2aa0a138cc42577c4062b655a7bc48d3
+      size: 3364
+    - path: src/facts/xbrl_read.py
+      hash: md5
+      md5: 9a4f1de38291f344def82fecd61d4149
+      size: 7691
+    - path: src/facts/xlsx_read.py
+      hash: md5
+      md5: 1e8fadd845be04479963c2a0ebf7ae1e
+      size: 14205
+    - path: src/ingest/runstats.py
+      hash: md5
+      md5: e2af55a01181e066ffcb1c32a9bae37a
+      size: 5088
+    params:
+      params.yaml:
+        comps.tickers:
+        - BILL
+        - FLYW
+        - PAYO
+        - FOUR
+        - TOST
+        - GPN
+        - PYPL
+        - XYZ
+        facts.arelle_cache: data/arelle_cache
+        facts.fye_tolerance_days: 7
+    outs:
+    - path: data/facts/build_log.json
+      hash: md5
+      md5: 6ff0791299a87ea7432c153cd2821823
+      size: 62437
+    - path: data/facts/facts.duckdb
+      hash: md5
+      md5: dfd3d5072600ff57d679c48173997875
+      size: 5255168

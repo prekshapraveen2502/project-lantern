@@ -110,6 +110,7 @@ ingest: {routing: {comps: xbrl+docling_items, dataroom: cs1_full+docling+ocr, we
 web: {host: sim.example.edu, sitemap_url: https://sim.example.edu/sitemap.xml}
 comps: {tickers: [BILL, FLYW, PAYO, FOUR, TOST, GPN, PYPL, XYZ], forms: [10-K, 10-Q], after: "2024-07-01", before: "2026-09-30", earnings_8k_quarters: 4, earnings_8k_min_gap_days: 45}
 reference: {price_snapshot: data/reference/prices_asof_20260930.csv}
+facts: {fye_tolerance_days: 7, arelle_cache: data/arelle_cache}
 llm:
   mode: replay                 # LANTERN_LLM_MODE overrides this
   provider: openai             # openai | anthropic (live and record modes only)
