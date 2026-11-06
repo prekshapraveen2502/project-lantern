@@ -284,3 +284,36 @@ stages:
       - data/facts/discrepancies.jsonl
       - reports/reconciliation.md:
           cache: false
+
+  chunk:
+    cmd: python -m src.chunk --deals kestrel --out data/chunks
+    deps:
+      - src/chunk.py
+      - config/metrics_vocab.yaml
+      - data/tokenizer
+      - data/edgar_comps
+      - data/dataroom/kestrel/raw
+      - data/dataroom/kestrel/export
+    params:
+      - chunk.grid
+      - comps.tickers
+    outs:
+      - data/chunks
+
+  embed:
+    cmd: python -m src.index --chunks data/chunks --index data/index
+    deps:
+      - src/index.py
+      - src/llm/client.py
+      - src/ingest/runstats.py
+      - data/chunks
+    params:
+      - chunk.grid
+      - llm.embed.hosted
+      - llm.embed.open
+      - llm.embed.open_revision
+      - budget.usd_cap_total
+    outs:
+      - data/index
+      - data/embed_cache:
+          persist: true

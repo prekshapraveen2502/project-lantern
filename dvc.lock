@@ -1129,3 +1129,120 @@ stages:
       hash: md5
       md5: 895e5b22a0b70edd88113947598fcf07
       size: 6512
+  chunk:
+    cmd: python -m src.chunk --deals kestrel --out data/chunks
+    deps:
+    - path: config/metrics_vocab.yaml
+      hash: md5
+      md5: 598918472c07151b4ab188ed62f18c80
+      size: 11846
+    - path: data/dataroom/kestrel/export
+      hash: md5
+      md5: 191b5973e6fbacfe0a786ea61388b422.dir
+      size: 3621497
+      nfiles: 99
+    - path: data/dataroom/kestrel/raw
+      hash: md5
+      md5: 3bdc65b0619e46d40b6a04b3882b4321.dir
+      size: 767673
+      nfiles: 8
+    - path: data/edgar_comps
+      hash: md5
+      md5: 37426c31ce9033bb4681cae94534731f.dir
+      size: 469283887
+      nfiles: 1846
+    - path: data/tokenizer
+      hash: md5
+      md5: 6e1ba9ce5954493a873ce70c57cd1794.dir
+      size: 943395
+      nfiles: 4
+    - path: src/chunk.py
+      hash: md5
+      md5: c8ffa1ac0499116d679ba280d99f3778
+      size: 16574
+    params:
+      params.yaml:
+        chunk.grid:
+          block:
+          - - 200
+            - 0
+          - - 400
+            - 0
+          section:
+          - - 200
+            - 0
+          - - 400
+            - 0
+          recursive:
+          - - 200
+            - 20
+          - - 400
+            - 40
+        comps.tickers:
+        - BILL
+        - FLYW
+        - PAYO
+        - FOUR
+        - TOST
+        - GPN
+        - PYPL
+        - XYZ
+    outs:
+    - path: data/chunks
+      hash: md5
+      md5: 80ba3295af1087e07a1a89bb50a6b043.dir
+      size: 19805517
+      nfiles: 7
+  embed:
+    cmd: python -m src.index --chunks data/chunks --index data/index
+    deps:
+    - path: data/chunks
+      hash: md5
+      md5: 80ba3295af1087e07a1a89bb50a6b043.dir
+      size: 19805517
+      nfiles: 7
+    - path: src/index.py
+      hash: md5
+      md5: 8141e22c3a7722adf8b162fdc9570e88
+      size: 7041
+    - path: src/ingest/runstats.py
+      hash: md5
+      md5: e2af55a01181e066ffcb1c32a9bae37a
+      size: 5088
+    - path: src/llm/client.py
+      hash: md5
+      md5: 2f828be174c1f55d9861f3d36c34bd84
+      size: 5524
+    params:
+      params.yaml:
+        budget.usd_cap_total: 5.0
+        chunk.grid:
+          block:
+          - - 200
+            - 0
+          - - 400
+            - 0
+          section:
+          - - 200
+            - 0
+          - - 400
+            - 0
+          recursive:
+          - - 200
+            - 20
+          - - 400
+            - 40
+        llm.embed.hosted: text-embedding-3-small
+        llm.embed.open: BAAI/bge-small-en-v1.5
+        llm.embed.open_revision: 5c38ec7c405ec4b44b94cc5a9bb96e735b38267a
+    outs:
+    - path: data/embed_cache
+      hash: md5
+      md5: 73e34a60d15a2de25ba31ab40e3e9c5d.dir
+      size: 83304192
+      nfiles: 20994
+    - path: data/index
+      hash: md5
+      md5: 0f0a0a0c595311579188e5e1ac4d45e0.dir
+      size: 392087727
+      nfiles: 62

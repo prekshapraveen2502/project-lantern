@@ -115,10 +115,11 @@ llm:
   mode: replay                 # LANTERN_LLM_MODE overrides this
   provider: openai             # openai | anthropic (live and record modes only)
   models: {large: gpt-4.1-mini, small: gpt-4.1-nano, judge: claude-sonnet-4-5, vision: gpt-4.1-mini}
-  embed: {hosted: text-embedding-3-small, open: BAAI/bge-small-en-v1.5}
-  prices: {gpt-4.1-mini: [0.40, 1.60], gpt-4.1-nano: [0.10, 0.40], claude-sonnet-4-5: [3.0, 15.0]}  # USD per 1M tokens [in, out]; check your provider's page and date it
+  embed: {hosted: text-embedding-3-small, open: BAAI/bge-small-en-v1.5, open_revision: 5c38ec7c405ec4b44b94cc5a9bb96e735b38267a}
+  prices: {gpt-4.1-mini: [0.40, 1.60], gpt-4.1-nano: [0.10, 0.40], claude-sonnet-4-5: [3.0, 15.0], text-embedding-3-small: [0.02, 0], "BAAI/bge-small-en-v1.5": [0, 0]}  # USD per 1M tokens [in, out]; check your provider's page and date it; text-embedding-3-small checked 2026-11-06
   temperature: 0
 budget: {usd_cap_total: 5.00, usd_cap_per_task: 0.10}
+chunk: {grid: {block: [[200, 0], [400, 0]], section: [[200, 0], [400, 0]], recursive: [[200, 20], [400, 40]]}}
 retrieval: {strategy: block, chunk_tokens: 400, overlap_tokens: 0, k: 10, hybrid: {enabled: true, rrf_k: 60}, reranker: none}
 qa: {numeric_tolerance_rel: 0.005, max_regenerations: 1}
 reconcile: {tolerance_rel: 0.01, high_gap_rel: 0.05}
