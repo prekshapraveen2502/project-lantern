@@ -1,0 +1,6 @@
+outs:
+- md5: 68158bdaad446b488ff5426aece8091c.dir
+  size: 7253
+  nfiles: 23
+  hash: md5
+  path: llm_cache

@@ -25,7 +25,8 @@ import pandas as pd
 import yaml
 
 from src.facts.periods import fiscal_labels
-from src.facts.schema import FACT_COLUMNS, create_db
+from src.facts.claims import extract_deal
+from src.facts.schema import CLAIM_COLUMNS, FACT_COLUMNS, create_db
 from src.facts.vocab import load_vocab
 from src.facts.xbrl_read import check_unconvertible, citation_value, group_tags, read_filing
 from src.facts.xlsx_read import read_workbook
@@ -289,7 +290,7 @@ def main() -> None:
             s["units"] = len(rows)
         if s["status"] != "ok":
             failed.append(t)
-    dataroom_log = {}
+    dataroom_log, claim_rows, claims_log = {}, [], {}
     for deal in args.deals:
         with stats.item(f"dataroom:{deal}", "facts") as s:
             rows, dataroom_log[deal] = build_dataroom(deal, Path(args.dataroom), vocab, tol)
@@ -297,6 +298,13 @@ def main() -> None:
             s["units"] = len(rows)
         if s["status"] != "ok":
             failed.append(f"dataroom:{deal}")
+            continue
+        with stats.item(f"claims:{deal}", "claims") as s:               # item 5: tier-4 claims, via the LLM client
+            crow, claims_log[deal] = extract_deal(deal, Path(args.dataroom), vocab, rows, params)
+            claim_rows += crow
+            s["units"] = len(crow)
+        if s["status"] != "ok":
+            failed.append(f"claims:{deal}")
     stats.finish()
     if failed:
         sys.exit(f"[ERROR] facts: failed for {failed} (see data/bench/cs2/facts.csv); no store written")
@@ -307,6 +315,13 @@ def main() -> None:
     con.register("new_facts", df)
     con.execute("INSERT INTO facts SELECT * FROM new_facts")
     n = con.execute("SELECT count(*) FROM facts").fetchone()[0]
+    if claim_rows:
+        cdf = pd.DataFrame(claim_rows, columns=CLAIM_COLUMNS).astype(
+            {"scale": "Int64", "fiscal_year": "Int64", "tier": "Int64", "page": "Int64"})
+        con.register("new_claims", cdf)
+        con.execute(f"INSERT INTO claims ({', '.join(chr(34) + c + chr(34) for c in CLAIM_COLUMNS)}) "
+                    f"SELECT * FROM new_claims")
+    n_claims = con.execute("SELECT count(*) FROM claims").fetchone()[0]
     con.close()
 
     totals = {k: sum(c["crosscheck"][k] for c in comps_log.values())
@@ -324,7 +339,9 @@ def main() -> None:
                                                   for f in c["filings"].values())})
     Path(args.log).parent.mkdir(parents=True, exist_ok=True)
     totals["dataroom_facts"] = sum(d["facts"] for deal in dataroom_log.values() for d in deal.values())
-    Path(args.log).write_text(json.dumps(json_safe({"totals": totals, "comps": comps_log, "dataroom": dataroom_log}),
+    totals["claims"] = n_claims
+    Path(args.log).write_text(json.dumps(json_safe({"totals": totals, "comps": comps_log, "dataroom": dataroom_log,
+                                                    "claims": claims_log}),
                                          indent=1, sort_keys=True) + "\n", encoding="utf-8")
     print(f"[INFO] facts: {n} facts -> {args.out}; totals {totals}; log -> {args.log}")
 

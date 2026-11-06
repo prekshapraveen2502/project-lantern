@@ -62,8 +62,14 @@ CREATE TABLE claims (
     bbox          DOUBLE[],
     citation      JSON    NOT NULL,
     extractor     VARCHAR NOT NULL,
-    lineage       JSON    NOT NULL
+    lineage       JSON    NOT NULL,
+    comparator    VARCHAR NOT NULL CHECK (comparator IN ('eq', 'approx', 'lt', 'le', 'gt', 'ge'))
 )"""
+
+CLAIM_COLUMNS = ["claim_id", "deal_id", "entity_id", "metric", "value", "unit", "scale", "period_type", "start", "end",
+                 "fiscal_year", "fiscal_period", "period_label", "period_basis", "qualifier", "claim_text", "method",
+                 "tier", "source_type", "doc_id", "block_id", "page", "bbox", "citation", "extractor", "lineage",
+                 "comparator"]
 
 FACT_COLUMNS = ["fact_id", "deal_id", "entity_id", "concept", "metric", "value", "unit", "scale", "period_type",
                 "start", "end", "fiscal_year", "fiscal_period", "dims", "decimals", "tier", "source_type", "doc_id",
