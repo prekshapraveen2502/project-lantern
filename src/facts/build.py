@@ -28,6 +28,7 @@ from src.facts.periods import fiscal_labels
 from src.facts.schema import FACT_COLUMNS, create_db
 from src.facts.vocab import load_vocab
 from src.facts.xbrl_read import check_unconvertible, citation_value, group_tags, read_filing
+from src.facts.xlsx_read import read_workbook
 from src.ingest.runstats import RunStats
 
 FORMS = ("10-K", "10-Q")
@@ -234,6 +235,27 @@ def build_comp(ticker: str, comps_dir: Path, vocab: dict, cache: Path, tol: int,
     return rows, log
 
 
+def build_dataroom(deal: str, root: Path, vocab: dict, tol: int) -> tuple[list[dict], dict]:
+    """Item 4: every .xlsx in data/dataroom/{deal}/export/manifest.csv -> tier-3 facts. deal_id is the folder name."""
+    import csv
+    from importlib.metadata import version as pkg_version
+    export = root / deal / "export"
+    manifest = list(csv.DictReader(open(export / "manifest.csv", encoding="utf-8")))
+    records = [json.loads(line) for line in open(export / "records.jsonl", encoding="utf-8")]
+    rows, log = [], {}
+    for m in manifest:
+        if not m["file"].lower().endswith(".xlsx"):
+            continue
+        if m["deal_id"] != deal:
+            raise RuntimeError(f"{export / 'manifest.csv'}: {m['file']} has deal_id {m['deal_id']}, folder is {deal}")
+        block_ids = {r["section"]: r["block_id"] for r in records if r["doc_id"] == m["accession"]}
+        r, log[m["accession"]] = read_workbook(root / deal / "raw" / m["file"], m["accession"], deal, vocab, tol,
+                                               block_ids, m["sha256"], f"openpyxl {pkg_version('openpyxl')}")
+        log[m["accession"]]["file"] = m["file"]
+        rows += r
+    return rows, log
+
+
 def json_safe(obj):
     if isinstance(obj, dict):
         return {k: json_safe(v) for k, v in obj.items()}
@@ -250,6 +272,8 @@ def main() -> None:
     ap.add_argument("--vocab", default="config/metrics_vocab.yaml")
     ap.add_argument("--comps", default="data/edgar_comps")
     ap.add_argument("--stats", default=None, help="run-stats CSV (default data/bench/cs2/facts.csv)")
+    ap.add_argument("--deals", nargs="*", default=[], help="data-room folders under --dataroom (item 4)")
+    ap.add_argument("--dataroom", default="data/dataroom")
     args = ap.parse_args()
 
     params = yaml.safe_load(Path(args.params).read_text(encoding="utf-8"))
@@ -265,6 +289,14 @@ def main() -> None:
             s["units"] = len(rows)
         if s["status"] != "ok":
             failed.append(t)
+    dataroom_log = {}
+    for deal in args.deals:
+        with stats.item(f"dataroom:{deal}", "facts") as s:
+            rows, dataroom_log[deal] = build_dataroom(deal, Path(args.dataroom), vocab, tol)
+            all_rows += rows
+            s["units"] = len(rows)
+        if s["status"] != "ok":
+            failed.append(f"dataroom:{deal}")
     stats.finish()
     if failed:
         sys.exit(f"[ERROR] facts: failed for {failed} (see data/bench/cs2/facts.csv); no store written")
@@ -291,8 +323,9 @@ def main() -> None:
                    "citations_ixbrl_context": sum(f["citations_ixbrl_context"] for c in comps_log.values()
                                                   for f in c["filings"].values())})
     Path(args.log).parent.mkdir(parents=True, exist_ok=True)
-    Path(args.log).write_text(json.dumps(json_safe({"totals": totals, "comps": comps_log}), indent=1,
-                                         sort_keys=True) + "\n", encoding="utf-8")
+    totals["dataroom_facts"] = sum(d["facts"] for deal in dataroom_log.values() for d in deal.values())
+    Path(args.log).write_text(json.dumps(json_safe({"totals": totals, "comps": comps_log, "dataroom": dataroom_log}),
+                                         indent=1, sort_keys=True) + "\n", encoding="utf-8")
     print(f"[INFO] facts: {n} facts -> {args.out}; totals {totals}; log -> {args.log}")
 
 
