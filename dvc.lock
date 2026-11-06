@@ -822,8 +822,8 @@ stages:
     deps:
     - path: data/dataroom/kestrel/raw
       hash: md5
-      md5: 2616a8f977df23804c38cb472248a970.dir
-      size: 767689
+      md5: 3bdc65b0619e46d40b6a04b3882b4321.dir
+      size: 767673
       nfiles: 8
     - path: data/dataroom/variant.json
       hash: md5
@@ -984,8 +984,8 @@ stages:
     outs:
     - path: data/dataroom/kestrel/export
       hash: md5
-      md5: 7223a2684d769bb7f7884190b49eca42.dir
-      size: 3620823
+      md5: 191b5973e6fbacfe0a786ea61388b422.dir
+      size: 3621497
       nfiles: 99
   facts:
     cmd: python -m src.facts.build --out data/facts/facts.duckdb --log 
