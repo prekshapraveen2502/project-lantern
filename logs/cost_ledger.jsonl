@@ -109,3 +109,5 @@
 {"model": "BAAI/bge-small-en-v1.5", "in": 78521, "out": 0, "usd": 0.0, "stage": "embed"}
 {"model": "BAAI/bge-small-en-v1.5", "in": 82927, "out": 0, "usd": 0.0, "stage": "embed"}
 {"model": "BAAI/bge-small-en-v1.5", "in": 59186, "out": 0, "usd": 0.0, "stage": "embed"}
+{"model": "text-embedding-3-small", "in": 610, "out": 0, "usd": 1.2e-05, "stage": "embed"}
+{"model": "BAAI/bge-small-en-v1.5", "in": 1089, "out": 0, "usd": 0.0, "stage": "embed"}

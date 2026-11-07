@@ -49,28 +49,43 @@ def query_vector(query: str, which: str, params: dict):
     return embed_texts(client, which, models(params)[which], [text])[0]
 
 
-def retrieve(query: str, scope: str | None = None, *, strategy: str, size: int, overlap: int, which: str,
-             params: dict, index_dir: Path = Path("data/index"), k: int | None = None, embed_query=None) -> list[dict]:
-    where = scope_filter(scope)                                  # refuse before touching the store
-    from rank_bm25 import BM25Okapi
+def open_collection(index_dir: Path, strategy: str, size: int, overlap: int, which: str):
     import chromadb
     from chromadb.config import Settings
     from src.index import collection_name
-    r = params["retrieval"]
-    k = k or int(r["k"])
     db = chromadb.PersistentClient(path=str(Path(index_dir) / "chroma"), settings=Settings(anonymized_telemetry=False))
-    col = db.get_collection(collection_name(strategy, size, overlap, which))
+    return db.get_collection(collection_name(strategy, size, overlap, which))
+
+
+def rank(query: str, scope: str | None, *, collection, which: str, params: dict, depth: int,
+         embed_query=None) -> dict:
+    """Dense, BM25 and fused (RRF) rankings of chunk ids, each [(chunk_id, score)], plus chunk metadata. The scope
+    filter is applied in the store for both retrievers; a missing or unknown scope raises first."""
+    where = scope_filter(scope)
+    from rank_bm25 import BM25Okapi
+    r = params["retrieval"]
     qv = (embed_query or (lambda q: query_vector(q, which, params)))(query)
-    dense = col.query(query_embeddings=[list(map(float, qv))], n_results=k, where=where, include=["metadatas"])
-    dense_ids = dense["ids"][0]
-    pool = col.get(where=where, include=["documents", "metadatas"])
+    d = collection.query(query_embeddings=[list(map(float, qv))], n_results=depth, where=where,
+                         include=["distances"])
+    dense = [(cid, 1.0 - dist) for cid, dist in zip(d["ids"][0], d["distances"][0])]
+    pool = collection.get(where=where, include=["documents", "metadatas"])
     meta = dict(zip(pool["ids"], pool["metadatas"]))
-    bm25_ids = []
+    bm25 = []
     if pool["ids"]:
-        scores = BM25Okapi([tokenize(d) for d in pool["documents"]]).get_scores(tokenize(query))
-        bm25_ids = [cid for _, cid in sorted(zip(scores, pool["ids"]), key=lambda x: (-x[0], x[1]))[:k]]
-    fused = rrf([dense_ids, bm25_ids], int(r["hybrid"]["rrf_k"]))[:k] if r["hybrid"]["enabled"] else \
-        [(cid, 0.0) for cid in dense_ids]
+        scores = BM25Okapi([tokenize(x) for x in pool["documents"]]).get_scores(tokenize(query))
+        bm25 = [(cid, float(s)) for s, cid in sorted(zip(scores, pool["ids"]), key=lambda x: (-x[0], x[1]))[:depth]]
+    hybrid = rrf([[c for c, _ in dense], [c for c, _ in bm25]], int(r["hybrid"]["rrf_k"]))[:depth] \
+        if r["hybrid"]["enabled"] else dense
+    return {"dense": dense, "bm25": bm25, "hybrid": hybrid, "meta": meta}
+
+
+def retrieve(query: str, scope: str | None = None, *, strategy: str, size: int, overlap: int, which: str,
+             params: dict, index_dir: Path = Path("data/index"), k: int | None = None, embed_query=None) -> list[dict]:
+    scope_filter(scope)                                          # refuse before touching the store
+    k = k or int(params["retrieval"]["k"])
+    col = open_collection(index_dir, strategy, size, overlap, which)
+    ranked = rank(query, scope, collection=col, which=which, params=params, depth=k, embed_query=embed_query)
+    meta, fused = ranked["meta"], ranked["hybrid"]
     out = []
     for cid, score in fused:
         m = meta[cid]
