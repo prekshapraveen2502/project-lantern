@@ -119,6 +119,17 @@ def build(chunks_dir: Path, index_dir: Path, params: dict, client, stats=None) -
     return log
 
 
+def embed_queries(qrels: Path, params: dict, client) -> int:
+    """Part 3 item 1: the qrels query texts go into the same cache (open model with the bge query prefix), so the
+    retrieval_eval stage runs in replay only."""
+    from src.retrieve import BGE_QUERY_PREFIX
+    queries = [json.loads(l)["query"] for l in open(qrels, encoding="utf-8") if l.strip()]
+    for which, m in models(params).items():
+        texts = [(BGE_QUERY_PREFIX + q) if which == "open" else q for q in queries]
+        embed_texts(client, which, m, texts)
+    return len(queries)
+
+
 class _null:
     def __enter__(self):
         return {"status": "ok", "units": 0}
@@ -131,6 +142,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Part 2 embed stage")
     ap.add_argument("--chunks", default="data/chunks")
     ap.add_argument("--index", default="data/index")
+    ap.add_argument("--qrels", default="data/eval/qrels.jsonl", help="Part 3: query texts embedded into the cache")
     ap.add_argument("--params", default="params.yaml")
     ap.add_argument("--stats", default=None, help="run-stats CSV (default data/bench/cs2/embed.csv)")
     args = ap.parse_args()
@@ -142,6 +154,8 @@ def main() -> None:
     stats = RunStats("embed", args.stats)
     log = build(Path(args.chunks), index, params, client, stats)
     stats.finish()
+    nq = embed_queries(Path(args.qrels), params, client)
+    print(f"[INFO] embed: {nq} qrels queries x {len(models(params))} models cached")
     (index / "index_log.json").write_text(json.dumps(log, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     print(f"[INFO] embed: {len(log)} collections -> {index / 'chroma'} (mode {client.MODE})")
 

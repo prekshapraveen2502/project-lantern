@@ -304,9 +304,11 @@ stages:
     cmd: python -m src.index --chunks data/chunks --index data/index
     deps:
       - src/index.py
+      - src/retrieve.py
       - src/llm/client.py
       - src/ingest/runstats.py
       - data/chunks
+      - data/eval/qrels.jsonl
     params:
       - chunk.grid
       - llm.embed.hosted
@@ -317,3 +319,22 @@ stages:
       - data/index
       - data/embed_cache:
           persist: true
+  retrieval_eval:
+    cmd: python -m src.retrieval_eval --qrels data/eval/qrels.jsonl --index data/index --out reports/retrieval_eval.json
+    deps:
+      - src/retrieval_eval.py
+      - src/retrieve.py
+      - src/index.py
+      - src/llm/client.py
+      - data/eval/qrels.jsonl
+      - data/index
+      - data/embed_cache
+    params:
+      - chunk.grid
+      - llm.embed.hosted
+      - llm.embed.open
+      - llm.embed.open_revision
+      - retrieval.hybrid
+    metrics:
+      - reports/retrieval_eval.json:
+          cache: false

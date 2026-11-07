@@ -1201,10 +1201,14 @@ stages:
       md5: 80ba3295af1087e07a1a89bb50a6b043.dir
       size: 19805517
       nfiles: 7
+    - path: data/eval/qrels.jsonl
+      hash: md5
+      md5: c5ed2fd376d8931370e1c699d2432478
+      size: 12906
     - path: src/index.py
       hash: md5
-      md5: 8141e22c3a7722adf8b162fdc9570e88
-      size: 7041
+      md5: 5a58f0edd5ff9fd2af2c94d5a53a26c9
+      size: 7859
     - path: src/ingest/runstats.py
       hash: md5
       md5: e2af55a01181e066ffcb1c32a9bae37a
@@ -1213,6 +1217,10 @@ stages:
       hash: md5
       md5: 2f828be174c1f55d9861f3d36c34bd84
       size: 5524
+    - path: src/retrieve.py
+      hash: md5
+      md5: c3d758dc2012d64be1e3f425a383b2cc
+      size: 4743
     params:
       params.yaml:
         budget.usd_cap_total: 5.0
@@ -1238,11 +1246,74 @@ stages:
     outs:
     - path: data/embed_cache
       hash: md5
-      md5: 73e34a60d15a2de25ba31ab40e3e9c5d.dir
-      size: 83304192
-      nfiles: 20994
+      md5: c36d32d2d749462ce2b9184b62095027.dir
+      size: 83780352
+      nfiles: 21114
     - path: data/index
       hash: md5
-      md5: 0f0a0a0c595311579188e5e1ac4d45e0.dir
-      size: 392087727
+      md5: 5bb1fbfb953b35ab42bb02fed0739eda.dir
+      size: 392177839
       nfiles: 62
+  retrieval_eval:
+    cmd: python -m src.retrieval_eval --qrels data/eval/qrels.jsonl --index 
+      data/index --out reports/retrieval_eval.json
+    deps:
+    - path: data/embed_cache
+      hash: md5
+      md5: c36d32d2d749462ce2b9184b62095027.dir
+      size: 83780352
+      nfiles: 21114
+    - path: data/eval/qrels.jsonl
+      hash: md5
+      md5: c5ed2fd376d8931370e1c699d2432478
+      size: 12906
+    - path: data/index
+      hash: md5
+      md5: 5bb1fbfb953b35ab42bb02fed0739eda.dir
+      size: 392177839
+      nfiles: 62
+    - path: src/index.py
+      hash: md5
+      md5: 5a58f0edd5ff9fd2af2c94d5a53a26c9
+      size: 7859
+    - path: src/llm/client.py
+      hash: md5
+      md5: 2f828be174c1f55d9861f3d36c34bd84
+      size: 5524
+    - path: src/retrieval_eval.py
+      hash: md5
+      md5: e12fadd2e1cbcb691eecd34e674ffab3
+      size: 8394
+    - path: src/retrieve.py
+      hash: md5
+      md5: c3d758dc2012d64be1e3f425a383b2cc
+      size: 4743
+    params:
+      params.yaml:
+        chunk.grid:
+          block:
+          - - 200
+            - 0
+          - - 400
+            - 0
+          section:
+          - - 200
+            - 0
+          - - 400
+            - 0
+          recursive:
+          - - 200
+            - 20
+          - - 400
+            - 40
+        llm.embed.hosted: text-embedding-3-small
+        llm.embed.open: BAAI/bge-small-en-v1.5
+        llm.embed.open_revision: 5c38ec7c405ec4b44b94cc5a9bb96e735b38267a
+        retrieval.hybrid:
+          enabled: true
+          rrf_k: 60
+    outs:
+    - path: reports/retrieval_eval.json
+      hash: md5
+      md5: b81d492a9f06c6d08a9c27720fbaf8a7
+      size: 43914
