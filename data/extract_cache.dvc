@@ -1,0 +1,6 @@
+outs:
+- md5: 885fb06117bbcd81de348d56b5c617f8.dir
+  size: 25140
+  nfiles: 7
+  hash: md5
+  path: extract_cache

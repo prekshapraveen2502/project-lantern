@@ -250,3 +250,10 @@
 {"model": "gpt-4.1-mini", "in": 2854, "out": 239, "usd": 0.001524, "stage": "qa"}
 {"model": "gpt-4.1-mini", "in": 3007, "out": 28, "usd": 0.001248, "stage": "qa"}
 {"model": "gpt-4.1-mini", "in": 2599, "out": 33, "usd": 0.001092, "stage": "qa"}
+{"model": "gpt-4.1-mini", "in": 20122, "out": 3905, "usd": 0.014297, "stage": "extract:single"}
+{"model": "gpt-4.1-mini", "in": 6134, "out": 49, "usd": 0.002532, "stage": "extract:staged"}
+{"model": "gpt-4.1-mini", "in": 14003, "out": 1523, "usd": 0.008038, "stage": "extract:staged"}
+{"model": "gpt-4.1-mini", "in": 12318, "out": 128, "usd": 0.005132, "stage": "extract:staged"}
+{"model": "gpt-4.1-mini", "in": 17327, "out": 4279, "usd": 0.013777, "stage": "extract:staged"}
+{"model": "gpt-4.1-mini", "in": 6105, "out": 157, "usd": 0.002693, "stage": "extract:staged"}
+{"model": "gpt-4.1-mini", "in": 6103, "out": 48, "usd": 0.002518, "stage": "extract:staged"}

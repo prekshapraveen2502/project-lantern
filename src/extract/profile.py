@@ -10,6 +10,7 @@ Every field may be null: null means the source does not state it.
 
 flatten() turns a profile into the field ids the gold file uses (Phase A section 3), e.g. history.revenue.FY2025.
 """
+import re
 from datetime import date
 from typing import Literal, Optional
 
@@ -40,6 +41,11 @@ class Source(BaseModel):
     page: Optional[int]
     block_id: str
     quote: str
+    # exact: the quote occurs verbatim (whitespace-insensitive) in the block; in_order: its tokens occur in order in
+    # the block with other tokens between (table cells: label, other columns, value; decision 2026-11-07 Q14 a). An
+    # in_order match guarantees the block contains the value, not that the value sits on the quoted label (it can
+    # match across table rows). none: not located; only in the raw profiles scored before the locate step.
+    match: Literal["exact", "in_order", "none"] = "exact"
 
 
 class Reconciled(BaseModel):
@@ -238,6 +244,23 @@ def extraction_model(metric_names: list[str]) -> type[BaseModel]:
 PERIOD_RES = (FY_RE, CY_RE, Q_RE)
 
 
+def locate_in_order(quote: str, blocks: list[dict]) -> tuple[dict, str] | None:
+    """(block, match kind): first the Part 1 rule (src/facts/claims.py locate, verbatim), else every token of the
+    quote in order within one block's text, each token whole (bounded by whitespace), other tokens allowed
+    between. Blocks are tried in order; the first match wins."""
+    hit = locate(quote, blocks)
+    if hit:
+        return hit[0], "exact"
+    tokens = quote.split()
+    if not tokens:
+        return None
+    pat = re.compile(r"(?<!\S)" + r"(?:\s+\S+)*?\s+".join(map(re.escape, tokens)) + r"(?!\S)")
+    for b in blocks:
+        if pat.search(b["text"] or ""):
+            return b, "in_order"
+    return None
+
+
 def to_value(number: float, scale_word: str, unit: str) -> tuple[float, str]:
     """(value in base units, stored unit)."""
     if unit == "percent":
@@ -248,20 +271,24 @@ def to_value(number: float, scale_word: str, unit: str) -> tuple[float, str]:
 
 
 class Builder:
-    """Converts extraction output into stored models; everything dropped or assumed is logged."""
+    """Converts extraction output into stored models; everything dropped or assumed is logged. raw=True keeps numbers
+    whose quote cannot be located (Source.match none): the raw profile scored before the locate step."""
 
-    def __init__(self, deal_id: str, blocks: list[dict], vocab: dict, latest_fy: int):
-        self.deal_id, self.blocks, self.vocab, self.latest_fy = deal_id, blocks, vocab, latest_fy
+    def __init__(self, deal_id: str, blocks: list[dict], vocab: dict, latest_fy: int, raw: bool = False):
+        self.deal_id, self.blocks, self.vocab, self.latest_fy, self.raw = deal_id, blocks, vocab, latest_fy, raw
         self.log: list[dict] = []
 
     def num(self, x, where: str, metric: str | None = None) -> Optional[Num]:
         if x is None:
             return None
-        hit = locate(x.quote, self.blocks)
+        hit = locate_in_order(x.quote, self.blocks)
         if hit is None:
             self.log.append({"field": where, "event": "quote_not_found", "quote": x.quote})
-            return None
-        b, _, _ = hit
+            if not self.raw:
+                return None
+            b, kind = {"doc_id": self.blocks[0]["doc_id"], "page": None, "block_id": ""}, "none"
+        else:
+            b, kind = hit
         value, unit = to_value(x.number, x.scale_word, x.unit)
         flipped = False
         if metric and (self.vocab["metrics"].get(metric) or {}).get("sign") == "cost" and value < 0:
@@ -274,7 +301,8 @@ class Builder:
             period, assumed = f"FY{self.latest_fy}", True
         return Num(value=value, unit=unit, comparator=x.comparator, as_written=x.as_written, period=period,
                    period_assumed=assumed, qualifier=list(dict.fromkeys(x.qualifiers)), sign_flipped=flipped,
-                   source=Source(doc_id=b["doc_id"], page=b.get("page"), block_id=b["block_id"], quote=x.quote))
+                   source=Source(doc_id=b["doc_id"], page=b.get("page"), block_id=b["block_id"], quote=x.quote,
+                                 match=kind))
 
     def line(self, x, where: str) -> Optional[Line]:
         v = self.num(x.value, f"{where}.{x.metric}", x.metric)

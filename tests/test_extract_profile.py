@@ -66,6 +66,20 @@ def test_unlocated_quote_and_bad_period_are_logged():
     assert {x["event"] for x in log} == {"quote_not_found", "period_unrecognised"}
 
 
+def test_locate_exact_then_in_order_and_raw_mode():
+    table = {"doc_id": "DR-x-001", "page": 9, "block_id": "p0009_b003",
+             "text": "FY2023\nFY2024\nFY2025\nGross revenue\n61.8\n78.9\n96.4\nNet revenue\n38.3\n48.7\n59.3"}
+    assert P.locate_in_order("Gross revenue 61.8", [table])[1] == "exact"
+    assert P.locate_in_order("Gross revenue 78.9", [table])[1] == "in_order"
+    assert P.locate_in_order("Gross revenue 8.9", [table]) is None          # tokens must be whole
+    assert P.locate_in_order("Gross revenue 48.7", [table])[1] == "in_order"   # known limit: across rows
+    e = ex(kpis=[{"metric": "arr", "value": num("ARR of $21.0m", 21.0, scale="million")}])
+    b = P.Builder("kestrel", BLOCKS, VOCAB, latest_fy=2025, raw=True)
+    p = b.build(e, "single")
+    assert p.kpis[0].value.source.match == "none" and p.kpis[0].value.value == 21e6
+    assert b.log[0]["event"] == "quote_not_found"
+
+
 def test_merge_first_non_null_wins_and_conflicts_logged():
     a, _ = build(ex(overview={"company_name": "Kestrel Pay, Inc."}, management=[{"name": "Dana Whitfield"}],
                     disclosure_gaps=["customer churn by cohort"]))

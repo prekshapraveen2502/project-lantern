@@ -122,5 +122,7 @@ budget: {usd_cap_total: 5.00, usd_cap_per_task: 0.10}
 chunk: {grid: {block: [[200, 0], [400, 0]], section: [[200, 0], [400, 0]], recursive: [[200, 20], [400, 40]]}}
 retrieval: {strategy: block, chunk_tokens: 200, overlap_tokens: 0, embed: open, k: 10, hybrid: {enabled: true, rrf_k: 60}, reranker: none}  # Part 3: highest overall hybrid nDCG@10 in reports/retrieval_eval.json (rule in reports/retrieval_eval.md)
 qa: {numeric_tolerance_rel: 0.005, max_regenerations: 1}
+extract: {gold: data/reference/kestrel_profile_gold.yaml, max_tokens: 4096, bootstrap_resamples: 10000, seed: 7}  # Part 5
+memo: {max_tokens: 1500}  # Part 5
 reconcile: {tolerance_rel: 0.01, high_gap_rel: 0.05}
 predict: {model: logistic, test_size: 0.3, seed: 7}
