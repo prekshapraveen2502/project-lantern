@@ -1,0 +1,24 @@
+# Part 4 item 6: run the answering service in replay mode.
+#   dvc pull data/facts data/index data/qa_cache data/edgar_comps data/dataroom/kestrel/export   (once)
+#   docker compose -f deploy/compose.yaml up --build
+#   curl localhost:8000/health
+# Data is mounted read-only from the DVC-pulled working copy (decision Q8 a); nothing is copied into the image.
+# The service copies data/index/chroma to a temporary directory at the first /answer (Chroma rewrites its sqlite file
+# on open). A question not in data/qa_cache returns 503 in replay.
+services:
+  qa:
+    build:
+      context: ..
+      dockerfile: services/qa/Dockerfile
+    image: lantern-qa:part4
+    environment:
+      LANTERN_LLM_MODE: replay
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data/facts:/app/data/facts:ro
+      - ../data/index:/app/data/index:ro
+      - ../data/qa_cache:/app/data/qa_cache:ro
+      - ../data/edgar_comps:/app/data/edgar_comps:ro
+      - ../data/dataroom:/app/data/dataroom:ro
+      - ../outputs/qa:/app/outputs/qa:ro
