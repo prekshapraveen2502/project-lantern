@@ -1,263 +1,278 @@
-# Project LANTERN — Financial Report Parsing Pipeline
+# Project LANTERN — Case Study 2 (personal)
 
-DAMG 7245 Big Data and Intelligent Analytics · Fall 2026 · Case Study 1 (Part 1) · Team 1
+A private-equity screening pipeline: it reads a seller's data room and the public filings of comparable companies,
+builds a fact store where every number carries a source tier and a citation, flags where management's claims disagree
+with the seller's own financials, and answers questions with cited, tier-labelled numbers that are checked by a
+numeric linter.
 
-| | |
-|---|---|
-| **Codelab** | [https://bigdataia-fall-26-team-1.github.io/lantern/lantern-case-study-1/](https://bigdataia-fall-26-team-1.github.io/lantern/lantern-case-study-1/) |
-| **Demo video** | [Team 1 Project LANTERN video](https://drive.google.com/file/d/1lCoqemP_CqSJkEtIJpjWF-UANFHNMA95/view?usp=drive_link) |
-| **Deployed app** | [http://52.15.107.141:8501](http://52.15.107.141:8501) |
+This repository continues **Case Study 1**, which was team work (credited [below](#case-study-1-base-team-work)).
+**Case Study 2 Parts 0–4** are this repository's own work. It follows the DAMG 7245 Case Study 2 brief but is a
+personal project, not a course submission.
 
-## Project Summary
+**The data room is synthetic** (see [Synthetic data](#synthetic-data)).
 
-FinTrust Analytics' analysts read 10-K filings by hand and cannot always say where a number came from. LANTERN automates this for Apple (AAPL), two 10-K filings (FY2024, period ending 2024-09-28; FY2025, period ending 2025-09-27).
+## Contents
 
-The pipeline:
+- [Architecture: what Case Study 2 adds](#architecture-what-case-study-2-adds)
+- [Status by Part](#status-by-part)
+- [Key results](#key-results)
+- [Synthetic data](#synthetic-data)
+- [Replay reproduction](#replay-reproduction)
+- [DVC remote access](#dvc-remote-access)
+- [Expected run times](#expected-run-times)
+- [Known issues and limitations](#known-issues-and-limitations)
+- [Generative-AI declaration](#generative-ai-declaration)
+- [Case Study 1 base (team work)](#case-study-1-base-team-work)
 
-1. downloads each filing and its Inline XBRL from SEC EDGAR, and renders the HTML filing to PDF;
-2. extracts text (pdfplumber, with a Tesseract OCR fallback), tables (Camelot/pdfplumber hybrid) and layout blocks (LayoutParser EfficientDet);
-3. runs Docling as a second, independent parsing path;
-4. writes provenance-tagged JSONL (every record has page and bbox), section Markdown and a TXT baseline;
-5. validates every extracted statement number against the filing's own XBRL facts (Arelle);
-6. measures quality (WER, CER, numeric recall, table cell F1), throughput and cost, and compares the open-source path with a managed service (AWS Textract).
+## Architecture: what Case Study 2 adds
 
-Everything is a DVC stage driven by `params.yaml`, so the corpus and every metric rebuild with `dvc repro`.
+Case Study 1 parsed two Apple 10-K filings into provenance-tagged records and validated their numbers against XBRL.
+Case Study 2 keeps those stages unchanged and reuses them through their path arguments. It adds:
 
-### Headline results
+- **Value-tiered ingestion.** Comparables' numbers come from Inline XBRL (tier 1). Docling text is used only for
+  10-K Items 1, 1A and 7. Data-room PDFs, scans, the spreadsheet and the transcript go through the CS1 parsers.
+  Records use the `lantern/2.0` schema (`deal_id`, `source_type`, `tier`, `citation`, `lineage`).
+- **A tiered fact store** (`data/facts/facts.duckdb`). It holds XBRL facts (tier 1) and seller-spreadsheet facts
+  (tier 3), each with a citation, plus management claims (tier 4) extracted by an LLM.
+- **Reconciliation** of management claims against the seller's financials.
+- **Chunking, embeddings and hybrid retrieval** (BM25 + dense, reciprocal rank fusion). Every query is
+  scope-filtered in the vector store.
+- **A grounded answering service.** Every number must reference a fact, a calculator output or a labelled claim,
+  and must pass a numeric linter.
+- **Replay.** Every LLM and embedding call goes through `src/llm/client.py`, whose caches are tracked by DVC, so the
+  pipeline reruns offline with `LANTERN_LLM_MODE=replay`.
 
-| Question | Answer | Source |
+```mermaid
+flowchart LR
+  CS1["Case Study 1 stages, unchanged:<br/>download, render, parse_pdfplumber, tables, layout,<br/>parse_docling, export, xbrl, evaluate"]
+  subgraph CS2["Case Study 2 stages"]
+    ingest_comps --> facts
+    ingest_earnings
+    ingest_dataroom --> facts --> reconcile
+    ingest_comps --> chunk
+    ingest_dataroom --> chunk --> embed --> retrieval_eval
+  end
+  CS1 -. "scripts reused via path args" .-> ingest_dataroom
+  facts --> qa["Q&A service (services/qa, not a stage)"]
+  embed --> qa
+  subgraph pending["Pending (brief Parts 5-8)"]
+    extract_profile
+    comps_table
+    figures
+    mandate_fit
+    qa_eval
+  end
+  facts -.-> extract_profile & comps_table
+  qa -.-> qa_eval
+```
+
+The brief's stage names are used exactly (`dvc.yaml`). The Q&A dev run is a script (`python -m src.qa.run_dev`), not
+a stage; the brief's `qa_eval` stage belongs to Part 8.
+
+## Status by Part
+
+| Part | Status | Code | Reports and outputs |
+|---|---|---|---|
+| 0 Corpus expansion and value-tiered ingestion | **partial**: `ingest_comps`, `ingest_earnings`, `ingest_dataroom` done; the `ingest_web` stage and the scale-up comparison against CS1 are pending | `src/ingest/` | `reports/comps_selection.md`, `reports/scale_up.md` (routing policy), `data/bench/cs2/` |
+| 1 Fact store, tiers, reconciliation | **partial**: done on Kestrel; `outputs/reconcile/deal_a.jsonl` and `deal_b.jsonl` wait for Deal A/B | `src/facts/`, `config/metrics_vocab.yaml` | `reports/reconciliation.md`, `data/facts/` |
+| 2 Chunking, embedding, indexing | **done** | `src/chunk.py`, `src/index.py`, `src/retrieve.py` | `reports/retrieval_design.md` |
+| 3 Retrieval evaluation and isolation | **partial**: metrics, choice and fixture isolation test done; the full-index isolation run waits for Deal A/B | `src/retrieval_eval.py`, `tests/test_retrieval.py`, `data/eval/qrels.jsonl` | `reports/retrieval_eval.md`, `reports/retrieval_eval.json` |
+| 4 Grounded answering service | **done** on the dev suite; the variant suite is pending | `services/qa/`, `src/qa/`, `src/calc/`, `deploy/compose.yaml` | `outputs/qa/dev.jsonl`, `outputs/qa/dev_summary.json` |
+| 5 Structured profile vs RAG, screening memo | pending | — | — |
+| 6 Comps, figures, chart reads | pending (only the minimal calculator Part 4 needs exists, in `src/calc/`) | — | — |
+| 7 Mandate-fit scoring | pending | — | — |
+| 8 Evaluation, economics, replay | pending | — | — |
+
+Also pending:
+- Data: Deal A and Deal B data rooms, the synthetic website, and the Q&A variant suite (`evals/tasks/variant.jsonl`).
+- Docs: a CS2 Codelab and demo video (not made).
+
+## Key results
+
+| Result | Value | Source |
 |---|---|---|
-| Text accuracy (18 ground-truth pages) | pdfplumber WER **1.91%**, Docling 11.71%, layout-routed 12.37% | `reports/metrics.json`, `reports/eval.md` |
-| Numeric recall in text | pdfplumber **99.5%**, Docling 83.2%, layout 96.7% | `reports/metrics.json` |
-| Table cells (2 statements, 111 double-keyed cells) | F1 **1.0** on both paths | `reports/metrics.json` |
-| XBRL match rate | Traditional **456 / 456 (100%)**, Docling 450 / 452 (99.6%) | `reports/xbrl.md` |
-| Throughput (median s/page) | Traditional **0.70**, Docling 4.52 | `reports/benchmarks.md` |
-| Cost at 5,000 filings/year | Traditional **$5.63**, Docling $36.35, Textract list price $4,537.50 | `reports/benchmarks.md` |
-| Primary path | Traditional pipeline; Docling as fallback; Textract as an off-by-default cached fallback | `reports/docling_comparison.md`, `reports/build_vs_buy.md` |
-| Source of truth | JSONL; Markdown (generated from it) feeds Case Study 2 | `reports/format_decision.md` |
+| Facts in the store | 20,825, of which 63 from the Kestrel spreadsheet | `data/facts/build_log.json` → `totals` |
+| Management claims extracted (tier 4) | 18 | `data/facts/build_log.json` → `totals.claims` |
+| iXBRL citations whose tag text gives back the stored value | 18,784 resolve, 0 mismatched, 1,978 not numeric (dashes, words) | `data/facts/build_log.json` → `totals` |
+| XBRL facts cross-checked against EDGAR companyfacts | 7,625 compared, 7,625 matched, 0 mismatched | `data/facts/build_log.json` → `totals` |
+| Vocabulary statement metrics per comparable (brief Part 0 asks ≥ 8) | 13–19 across the 8 comparables | `data/facts/build_log.json` → `comps.*.statement_metrics_with_facts` |
+| Reconciliation on Kestrel's five trap categories | recall (caught) 5/5, recall (exact status) 4/5, precision 5/5 | `reports/reconciliation.md` |
+| Retrieval strategy chosen | block chunks, 200 tokens, no overlap, open embedding model (`block-200-0-open`) | `reports/retrieval_eval.json`, `params.yaml` → `retrieval` |
+| Its hybrid nDCG@10 / recall@10 (60 queries) | 0.3909 / 0.5343 (runner-up: the hosted model on the same chunks, nDCG@10 0.3871) | `reports/retrieval_eval.json` |
+| Isolation test, filter removed | fails with 502 leaks of the committed fixture's toy deal_b across the 60 queries (it passes with the filter); no real Deal B exists yet | `reports/retrieval_eval.md` → Isolation |
+| Total LLM and embedding spend | $0.256925: claims extraction $0.02064, embeddings $0.042344, Q&A $0.193941 | `logs/cost_ledger.jsonl` (sum of `usd` by `stage`) |
 
-## Architecture Diagram
+**Q&A acceptance on the dev suite** (brief Part 4). Source: `outputs/qa/dev_summary.json`. The suite has 39 tasks, 32
+of them answerable (`evals/tasks/dev.jsonl`).
 
-![System Architecture](docs/img/architecture.png)
+| Brief acceptance | Result |
+|---|---|
+| Every number linted-and-resolved, or its claim dropped | 50 of 50 numbers resolved; 3 answers had a claim dropped |
+| Linter precision on ≥ 50 labelled numbers | 1.0 (59 true positives, 0 false positives, 108 labelled spans) |
+| Every citation resolves to an existing block | 71 of 71 |
+| …whose text contains the cited number | 51 of 51 |
+| Answer coverage (answerable questions not abstained) | 32 of 32 |
+| Answer status | 29 answered, 3 partially abstained, 7 not disclosed |
 
+Retrieval quality is modest. Recall@20 of the chosen strategy is 0.62 (`reports/retrieval_eval.json`), so about 4 in
+10 relevant blocks are not among the first 20 returned. `reports/retrieval_eval.md` gives the diagnosis.
 
-## Repository Layout
+## Synthetic data
 
-```
-lantern/
-  dvc.yaml  dvc.lock  params.yaml  requirements.txt
-  .dvc/config                      # DVC remotes (public read-only + team write)
-  .github/workflows/smoke.yml      # CI smoke test on every pull request
-  config/label_map.yaml            # curated PDF label -> XBRL concept map
-  src/                             # one script per DVC stage (+ src/managed/ for Textract)
-  data/                            # tracked by DVC, not Git
-  tests/                           # pytest suites + small fixtures committed to Git
-  reports/                         # every written deliverable, metrics and plots
-  notebooks/xbrl_validation.ipynb
-  docs/codelab.md                  # Codelab source; exported site in docs/lantern-case-study-1/
-  app/  deploy/                    # Streamlit UI, FastAPI backend, deployment scripts
-```
+The brief's instructor-provided data never arrived, so this project uses **synthetic** data in its place:
 
-## Prerequisites
+- **A separate private generator** produces it, outside this repository. It is seeded and config-driven, and its
+  configs reveal the traps, which is why it is kept private.
+- **Its outputs land at the brief's paths** and are tracked with DVC, never Git: `data/dataroom/kestrel/raw`,
+  `data/dataroom/kestrel/answer_key.yaml`, `data/dataroom/canaries_visible.json`, `data/dataroom/variant.json`,
+  `evals/tasks`.
+- **The data rooms contain planted traps**: claims that disagree with the financials, run-rate and period tricks,
+  concentration claims, add-backs. Deal B is specified with planted canary strings for isolation tests.
+- **Kestrel, the practice deal, has a public answer key**, as in the brief.
+- **Deal A and Deal B answer keys are hidden** outside the repository, in neither Git nor DVC. They are not to be
+  opened before final evaluation. Deal A and Deal B have not been generated yet.
+- **The comparables are real companies**, with real SEC EDGAR filings: BILL, FLYW, PAYO, FOUR, TOST, GPN, PYPL, XYZ
+  (`params.yaml` → `comps.tickers`, selection in `reports/comps_selection.md`).
 
-- Linux (graders) or macOS/Windows; **Python 3.11**
-- System packages:
-  ```bash
-  sudo apt-get update
-  sudo apt-get install -y tesseract-ocr poppler-utils libgl1
-  ```
-  Tesseract is needed for the OCR fallback; Poppler (`pdftoppm`, `pdfseparate`) was used to build the test fixtures; `libgl1` is needed by OpenCV.
-- Only if you re-run stages from scratch (not needed after `dvc pull`):
-  ```bash
-  playwright install chromium     # render stage (HTML -> PDF)
-  ```
-  The first `layout` and `parse_docling` runs download model weights from Hugging Face, and the first `xbrl` run lets Arelle cache the US-GAAP taxonomy, so these need internet access once.
+## Replay reproduction
 
-## Reproduction Steps
+The brief's reproducibility contract (Section 7), adapted to the stages that exist:
 
 ```bash
-git clone https://github.com/BigDataIA-Fall-26-Team-1/lantern.git lantern && cd lantern
-git checkout submission
+git clone https://github.com/prekshapraveen2502/project-lantern.git lantern && cd lantern
+git checkout main                      # the brief's cs2-submission tag does not exist (not a course submission)
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-dvc pull            # from the public remote, no credentials needed
-dvc repro           # runs with managed.enabled: false (no API calls)
+dvc pull                               # needs read access to the private remote (see below)
+export LANTERN_LLM_MODE=replay
+dvc repro                              # every stage, offline, from the LLM/embedding caches
 dvc metrics show
+python -m src.qa.run_dev               # Part 4 dev answers and acceptance checks (not a DVC stage)
 pytest -q
+# lantern-check cs2 --no-network       # the course checker is not available to this repository
 ```
 
 What to expect:
 
-- After `dvc pull`, `dvc repro` should skip or restore every stage, because `dvc.lock` matches the pulled data. A second `dvc repro` with no changes skips everything.
-- `managed.enabled: false` is the default in `params.yaml`. The Textract fallback then reads only its cache in `data/managed/` and never calls AWS, so the pipeline runs without credentials.
-- `pytest -q` runs 65 tests.
-- **Run `docling_parse` as a module** (`python -m src.docling_parse`), never as `python src/docling_parse.py`: the file name shadows the installed `docling_parse` package. The DVC stage already does this.
-
-## DVC Remote Access
-
-`.dvc/config` defines two remotes for the same S3 bucket:
-
-| Remote | URL | Use |
-|---|---|---|
-| `public` (default) | `https://lantern-dvc-team1-2026.s3.us-east-2.amazonaws.com/dvc` | read-only over HTTPS; `dvc pull` works with **no credentials** |
-| `store` | `s3://lantern-dvc-team1-2026/dvc` (us-east-2) | team write access for `dvc push` |
-
-To push (team members only): get the AWS key from the team, then
-
-```bash
-dvc remote default --local store
-dvc remote modify --local store access_key_id <KEY_ID>
-dvc remote modify --local store secret_access_key <SECRET>
-```
-
-These go into `.dvc/config.local`, which is never committed.
-
-## Pipeline Stages
-
-All canonical stage names from the brief are present in `dvc.yaml`. There are **no frozen stages**: every stage, including LayoutParser, runs locally.
-
-| Stage | Command (abridged) | Main output |
-|---|---|---|
-| `download` | `python src/download.py --output data/raw` | `data/raw/` (filings, unpacked iXBRL + `.xsd`) |
-| `render` | `python src/render.py --input data/raw --output data/rendered` | `data/rendered/*.pdf`, `manifest.csv` |
-| `parse_pdfplumber` | `python src/parse_text.py --input data/rendered --output data/parsed` | page text, word boxes, `ocr_log.csv` |
-| `tables` | `python src/tables.py --input data/rendered --output data/tables` | raw and normalized statement CSVs |
-| `layout` | `python src/layout.py --input data/rendered --output data/layout --figures data/figures` | `blocks.jsonl`, figure crops |
-| `parse_docling` | `python -m src.docling_parse --input data/rendered --output data/docling --raw data/raw` | Docling Markdown, JSON, table CSVs, per-page text |
-| `export` | `python -m src.export ...` | `data/export/{stem}.jsonl`, `.md`, `.txt` |
-| `xbrl` | `python src/xbrl.py` | `data/xbrl/facts.csv`, `comparison.csv`, `summary.json` |
-| `parse_fixtures` *(extra)* | parse_text + layout + docling on `tests/fixtures/` | `data/fixtures/` (scored by `evaluate` for the scanned and multi-column strata) |
-| `evaluate` | `python src/evaluate.py --out reports ...` | `reports/metrics.json`, `eval_pages.csv`, `eval_tables.csv` |
-
-Not stages, but tracked with `dvc add`:
-
-- `data/managed/` — the Textract response cache (7 pages), a dependency of `parse_pdfplumber` and `export`.
-- `data/ground_truth/` — hand-made ground truth (Part 9).
-- `data/bench/` — benchmark measurements (Part 10). Timings vary between runs, so they are a measurement, not a reproducible stage. Re-run with the commands in `reports/benchmarks.md` §9.
-
-File naming: files use the **stem** (rendered PDF name, e.g. `AAPL_10K_20250927`); records carry `doc_id`, the accession number. `data/rendered/manifest.csv` maps one to the other.
-
-## Expected Run Times
-
-Measured on an Intel Core 7 150U laptop (12 threads, 15.7 GiB RAM, no GPU), both filings (60 + 61 pages). Details in `reports/benchmarks.md`.
-
-| Stage | Expected time (from scratch) | Basis |
-|---|---|---|
-| After `dvc pull` | all stages skipped, seconds | `dvc.lock` matches |
-| `parse_pdfplumber` | about 15 s | 0.096 s/page median |
-| `tables` | a few seconds | 0.21 s/page on 5 statement pages per filing |
-| `layout` | about 1.5–2 min, plus 3–8 s model load | 0.58 s/page median, full stage |
-| `parse_docling` | **about 27 min** (966 s FY2024, 653 s FY2025, plus 97 s for the HTML conversion) | `data/docling/timing.csv` |
-| `export` | under 1 s | 0.005 s/page |
-| `download`, `render`, `xbrl`, `evaluate`, `parse_fixtures` | not timed separately | — |
-
-Docling is CPU-heavy and peaks at about 3.6 GiB RAM; run it with nothing else heavy open.
-
-## Continuous Integration
-
-`.github/workflows/smoke.yml` runs on every pull request (and on pushes to `main`):
-
-1. sets up Python 3.11 and installs `tesseract-ocr` and `libgl1`;
-2. installs `requirements.txt`;
-3. runs Part 1 text extraction and Part 2 table extraction on `tests/fixtures/`;
-4. runs `pytest -q`.
-
-It needs no EDGAR access, no DVC remote and no cloud credentials: every stage script accepts `--input` / `--output` paths, and the fixtures and their ground truth are committed to Git.
-
-Regression thresholds live in `params.yaml` under `eval.thresholds` (measured baseline plus a margin). A deliberately broken run is recorded in `reports/evidence/quality_failing_run.txt` (table cell F1 fell from 1.0 to 0.0).
-
-## Test Fixtures
-
-`tests/fixtures/` (Git, not DVC; sources in `tests/fixtures/README.md`):
-
-| File | Source |
-|---|---|
-| `statement.pdf` | AAPL FY2025 page 32, income statement |
-| `scanned.pdf` | AAPL FY2025 pages 5–7, rasterized at 300 DPI and rebuilt as an image-only PDF |
-| `multicol.pdf` | JPMorgan 10-K FY2024 page 10 (AAPL has no multi-column pages) |
-| `gt/` | transcriptions of each fixture page and a CSV of the statement table |
-
-## Part-to-Code Map
-
-| Part | Code | Reports and evidence |
-|------|------|---------|
-| P0 Repository, data, rendering | `src/download.py`, `src/render.py`, `params.yaml` | `data/rendered/manifest.csv`, `tests/fixtures/README.md` |
-| P1 Text + OCR fallback | `src/parse_text.py` | `data/parsed/ocr_log.csv` |
-| P2 Tables | `src/tables.py` | `reports/tables_method.md`, `reports/evidence/bakeoff_*.csv`, `reports/evidence/tables_log_*.csv` |
-| P3 Layout | `src/layout.py` | `reports/layout_audit.md`, `reports/layout/*.png` |
-| P4 Docling | `src/docling_parse.py` | `reports/docling_comparison.md` |
-| P5 Schema + provenance | `src/schema.py`, `src/export.py` | `data/export/*.jsonl`, `data/export/*.md` |
-| P6 Storage formats | `src/format_stats.py`, `src/export.py` | `reports/format_decision.md`, `reports/format_stats.csv`, `reports/format_test/` |
-| P7 Managed service | `src/managed/` | `reports/build_vs_buy.md`, `reports/managed/`, `data/managed.dvc` |
-| P8 DVC + CI | `dvc.yaml`, `dvc.lock`, `params.yaml`, `.github/workflows/smoke.yml` | this README |
-| P9 Evaluation + regression | `src/evaluate.py`, `src/plot_drift.py`, `tests/test_quality.py` | `reports/eval.md`, `reports/metrics.json`, `reports/eval_*.csv`, `reports/ground_truth_conventions.md`, `reports/plots/drift.png`, `reports/evidence/quality_*_run.txt` |
-| P10 Benchmarks + cost | `src/bench.py` | `reports/benchmarks.md`, `data/bench/` |
-| P11 XBRL validation | `src/xbrl.py`, `config/label_map.yaml`, `notebooks/xbrl_validation.ipynb` | `reports/xbrl.md`, `data/xbrl/` |
-| Docs | `docs/codelab.md` | `docs/lantern-case-study-1/` (exported Codelab) |
-| App | `app/api/`, `app/ui/`, `deploy/` | Deployed app section below |
-
-## Codelab
-
-**Link:** [Project LANTERN Codelab](https://bigdataia-fall-26-team-1.github.io/lantern/lantern-case-study-1/)
-
-A step-by-step walkthrough of the pipeline, one step per Part, with commands, results and screenshots.
-
-- Source: `docs/codelab.md` (claat Markdown format)
-- Exported site: `docs/lantern-case-study-1/`, published with GitHub Pages from `main`, folder `/docs`
-- To rebuild after editing the source:
+- After `dvc pull`, `dvc repro` skips every stage, because `dvc.lock` matches the pulled data. Run with
+  `LANTERN_LLM_MODE=replay` and no API key, `dvc status` and `dvc repro --dry` both report "Data and pipelines are
+  up to date".
+- `python -m src.qa.run_dev` in replay rewrites `outputs/qa/` byte for byte from `data/qa_cache` and adds no rows to
+  `logs/cost_ledger.jsonl`. A question that is not in the cache fails, rather than calling a model.
+- `pytest -q` skips the full-index isolation test, which waits for Deal A/B in the index.
+- The answering service also runs in replay in a container:
   ```bash
-  cd docs
-  claat export codelab.md
+  docker compose -f deploy/compose.yaml up --build
+  curl localhost:8000/health
   ```
-- To preview locally:
+  The image contains code and params only; data is mounted read-only, and no key is passed in.
+
+What has and has not been verified:
+
+- **Verified, stage by stage:** replay for `facts` (claims), `embed`, `retrieval_eval` and the Q&A dev run, each
+  with no API key. The `facts` and Q&A replays also ran with the network blocked.
+- **Not verified:** the whole contract on a clean machine, start to finish.
+
+## DVC remote access
+
+The DVC remote is a **private** S3 bucket: `lantern` = `s3://project-lantern-dvc-preksha/dvc` (`.dvc/config`).
+
+- `dvc pull` needs read credentials, which are available on request.
+- Credentials go in `.dvc/config.local`, which is gitignored:
+
   ```bash
-  cd docs/lantern-case-study-1
-  claat serve      # then open http://localhost:9090/
+  dvc remote modify --local lantern access_key_id <KEY_ID>
+  dvc remote modify --local lantern secret_access_key <SECRET>
   ```
 
-## Demo Video
+The brief asks that reproduction need no personal cloud credentials; this repository does not meet that yet.
 
-**URL:** [Team 1 Project LANTERN video](https://drive.google.com/file/d/1lCoqemP_CqSJkEtIJpjWF-UANFHNMA95/view?usp=drive_link) (hosted on Google Drive; architecture tour, pipeline run, one number traced end to end, Docling vs traditional, XBRL validation, build vs buy)
+## Expected run times
 
-## Deployed App
+After `dvc pull`, every stage is skipped in seconds.
 
-**URL:** [http://52.15.107.141:8501](http://52.15.107.141:8501) (Streamlit UI; the FastAPI backend runs on the same server, bound to localhost only)
+**Case Study 2 stages**, from `data/bench/cs2/<stage>.csv`. Times are the sum of `seconds` over the items of the most
+recent run, on Darwin arm64, 10 threads, 16 GiB, Python 3.11.17 (the CSVs' `machine` column):
 
-The app is a read-only viewer over the pipeline outputs. It runs no pipeline stages and calls no paid APIs.
+| Stage | Latest run | Items |
+|---|---|---|
+| `ingest_comps` | 58.2 s | 8 comparables |
+| `ingest_earnings` | 14.3 s | 8 comparables |
+| `ingest_dataroom` | 26.9 s | 5 items (Kestrel) |
+| `facts` | 12.2 s | 10 items |
+| `embed` | 17.9 s | 12 collections |
+| `retrieval_eval` | per-query latency only: hybrid p50 144.87–203.86 ms by collection | 12 collections |
+| `chunk`, `reconcile` | not timed | — |
 
-| Page | What it shows |
-|---|---|
-| Home | The two filings from `manifest.csv`, page and record counts, records by block type |
-| Explorer | Any rendered page with every block's bbox drawn on it, and the page's JSONL records |
-| Trace | Search a value or phrase and follow it to the page, the bbox, the JSONL record and the Markdown line with its provenance comment |
-| Tables | Each extracted table: normalized values next to the raw cell strings, with extractor and scale |
-| Reports | Every file in `reports/`, grouped by Part |
+The CSVs do not record whether a run was in record or replay mode.
 
-**Architecture:** one EC2 instance (Ubuntu 24.04, us-east-2, same region as the DVC remote). systemd runs two services: `lantern-api` (FastAPI, `app/api/main.py`, 127.0.0.1:8000) and `lantern-ui` (Streamlit, `app/ui/`, port 8501). No load balancer or NAT gateway. The security group allows port 8501 from anywhere and SSH from one IP.
+**Case Study 1 stages:** measured on the CS1 team's laptop; see `reports/benchmarks.md`. From scratch, `parse_docling`
+is the slow one, at about 27 minutes for the two filings (`data/docling/timing.csv`).
 
-**Data:** the server runs `dvc pull data/export data/rendered` from the public read-only DVC remote, so it holds no AWS or GitHub credentials.
+## Known issues and limitations
 
-**Deploying:** the org disables GitHub deploy keys, so code is copied from a clean local checkout with `rsync` (excluding `.venv/`, `data/`, the DVC cache and `.env`).
+**Data and scope**
+- Deal A, Deal B, the synthetic website and the variant suite do not exist yet. So the reconcile outputs for Deal A/B,
+  the `ingest_web` stage, the full-index isolation run and every Part 5–8 deliverable are pending.
+- The DVC remote is private (above).
+- `.github/workflows/smoke.yml` exists, but no workflow run is recorded on this repository (`gh run list` returns
+  none), so there is no CI.
 
-1. First time, on the server: `bash deploy/setup.sh` (installs Python 3.11, the app packages from `app/requirements-app.txt`, pulls the data, starts both services).
-2. Updates: check out the branch or tag locally, re-run the rsync, then on the server run `bash deploy/update.sh`. It prints the deployed commit.
+**Fact store and reconciliation** (`reports/reconciliation.md`)
+- T-NRR is caught, but our status (`period_mismatch`, for "Q4 FY2025, annualized") differs from the key's
+  (`discrepancy`).
+- T-ADDBACK comes out as `definition_mismatch`: the claimed 15.8 equals the management-adjusted QoE fact. The key
+  expects `discrepancy`.
+- The transcript's "fourteen quota-carrying reps" was mapped to headcount. It is harmless here (`no_fact`).
+- In `params.yaml` → `llm.prices`, `text-embedding-3-small` was checked on 2026-11-06; `gpt-4.1-mini` is not yet
+  checked against the provider's page. Unit economics (Part 8) will read these prices.
+- `data/rendered/manifest.csv` (a CS1 output) is left unchanged by decision (DECISIONS 2026-11-06); the per-deal
+  `data/dataroom/{deal}/export/manifest.csv` carries `deal_id` and `source_type`.
+- CS1's `xbrl` stage has a weakness when offline: with an empty taxonomy cache, Arelle loads only part of a
+  filing's facts. CS2's `facts` stage avoids this with the DVC-tracked `data/arelle_cache` and a guard: loaded
+  numeric facts must equal the filing's `ix:nonFraction` tags. CS1 is left unchanged.
 
-**Running locally:**
+**Retrieval** (`reports/retrieval_eval.md`)
+- nDCG@10 is modest; the report diagnoses why, by category.
+- The qrels were found by keyword search, which can understate dense retrieval.
+- Several categories have only 5–11 queries.
 
-```bash
-pip install -r app/requirements-app.txt
-uvicorn app.api.main:app --port 8000
-LANTERN_API=http://127.0.0.1:8000 streamlit run app/ui/Home.py
-```
+**Q&A** (`outputs/qa/dev.jsonl`, `outputs/qa/dev_summary.json`)
+- K14 asks how much Kestrel's net revenue grew. The answer leads with the CIM's 31% (labelled unverified) and never
+  states the 21.8% growth calc from the seller financials. It passes the linter but is likely scored wrong in
+  Part 8.
+- P09's second claim says net cash used in investing "increased by -$2,998 million". The values pass the linter, but
+  the sentence is misleading.
+- `data/qa_cache` keeps entries from a superseded first dev run that nothing uses any more.
+- The fact matcher for XBRL concept names was tuned on the dev suite; the variant suite is held out.
+- Linter precision (1.0) was measured on labels that were in view while the rules were written, so it is not a
+  held-out figure.
+- Numeric accuracy against the expected answers is not measured yet (Part 8).
 
-## Generative AI Use Declaration
+## Generative-AI declaration
 
-We used Claude (Anthropic) for initial ideas on the architecture diagram, for help with coding, and for help drafting and editing documentation (this README, the Codelab and report text). In Part 6, Claude was also the model the three test questions were asked of, as recorded in `reports/format_test/llm_answers.md`. The team reviewed, tested and modified all AI-assisted output, and every measurement, metric and conclusion in `reports/` comes from our own pipeline runs.
+- **Code**: written with Claude Code (Anthropic) under my direction and review.
+- **Drafts I accepted**: the design review, the retrieval qrels, the Q&A dev suite and the linter's labelled
+  numbers were drafted with Claude, then reviewed and accepted by me.
+- **Models inside the pipeline**, all called through `src/llm/client.py` with cached, replayable calls:
+  - `gpt-4.1-mini` extracts management claims and answers questions.
+  - `text-embedding-3-small` (hosted) and `BAAI/bge-small-en-v1.5` (open, run locally) compute embeddings.
+- **Also written with Claude**: the synthetic data generator (outside this repo) and this README.
 
-## Attestation
+## Case Study 1 base (team work)
 
-WE ATTEST THAT WE HAVEN'T USED ANY OTHER STUDENTS' WORK IN OUR ASSIGNMENT AND ABIDE BY THE POLICIES LISTED IN THE STUDENT HANDBOOK.
+Case Study 1 (DAMG 7245, Fall 2026, Team 1) was built by **Preksha Praveen, Pradyumna Reddy Cherla and Pranav
+Waghmare**, in [BigDataIA-Fall-26-Team-1/lantern](https://github.com/BigDataIA-Fall-26-Team-1/lantern).
 
-- Member 1: Preksha Praveen — 33%
-- Member 2: Pradyumna Reddy Cherla — 33%
-- Member 3: Pranav Waghmare — 33%
+- **What it did:** downloaded and rendered two Apple 10-K filings; extracted text (pdfplumber with Tesseract OCR),
+  tables and layout blocks; ran Docling as a second path; wrote provenance-tagged JSONL; validated statement numbers
+  against XBRL; compared against AWS Textract.
+- **Its stages** remain in `dvc.yaml` unchanged: `download`, `render`, `parse_pdfplumber`, `tables`, `layout`,
+  `parse_docling`, `export`, `xbrl`, `evaluate`, `parse_fixtures`.
+- **Its reports** are in `reports/`: `eval.md`, `metrics.json`, `xbrl.md`, `benchmarks.md`, `docling_comparison.md`,
+  `build_vs_buy.md`, `format_decision.md`, `tables_method.md`, `layout_audit.md`, `ground_truth_conventions.md`.
+- **Its app** (`app/`, `deploy/lantern-*.service`) is a read-only viewer over the CS1 outputs.
+- **As delivered for CS1** (not maintained here):
+  - [Codelab](https://bigdataia-fall-26-team-1.github.io/lantern/lantern-case-study-1/)
+  - [demo video](https://drive.google.com/file/d/1lCoqemP_CqSJkEtIJpjWF-UANFHNMA95/view?usp=drive_link)
+  - a Streamlit app deployed on EC2
