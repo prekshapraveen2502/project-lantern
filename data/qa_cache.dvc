@@ -1,0 +1,6 @@
+outs:
+- md5: fe0bebb0409b1637afc61ca7970955db.dir
+  size: 112766
+  nfiles: 139
+  hash: md5
+  path: qa_cache

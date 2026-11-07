@@ -1,0 +1,12 @@
+# Part 4 item 6: the answering service in replay mode (pins copied from the repo's requirements.txt).
+# No sentence-transformers/torch: question vectors come from data/qa_cache/embed. No instructor/openai: replay never
+# calls a provider (src/llm/client.py imports them only for a live call).
+fastapi==0.143.3
+uvicorn==0.54.0
+pydantic==2.13.5
+PyYAML==6.0.3
+numpy==2.4.6
+duckdb==1.5.6
+chromadb==1.5.9
+rank-bm25==0.2.2
+httpx==0.28.1

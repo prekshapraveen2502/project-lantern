@@ -1,0 +1,37 @@
+{
+ "citations": {
+  "cited_numbers": 51,
+  "cited_numbers_contained_in_block": 51,
+  "problems": {},
+  "resolve_to_a_block": 71,
+  "total": 71
+ },
+ "coverage": {
+  "abstained": [],
+  "answerable": 32,
+  "not_abstained": 32,
+  "rate": 1.0
+ },
+ "lint": {
+  "false_positive_spans": [],
+  "false_positives": 0,
+  "labelled_spans": 108,
+  "linter_numbers": 59,
+  "missed_numbers": [],
+  "precision": 1.0,
+  "true_positives": 59,
+  "wrong_values": []
+ },
+ "numbers": {
+  "answers_with_dropped_claims": 3,
+  "in_answers": 50,
+  "linted_and_resolved": 50,
+  "unresolved": {}
+ },
+ "status": {
+  "answered": 29,
+  "not_disclosed": 7,
+  "partially_abstained": 3
+ },
+ "tasks": 39
+}

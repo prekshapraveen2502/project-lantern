@@ -1,0 +1,6 @@
+outs:
+- md5: c6a6c21814663a03925c507f921b255a.dir
+  size: 16202
+  nfiles: 1
+  hash: md5
+  path: tasks

@@ -1,0 +1,18 @@
+# Part 4 item 6: the build context holds code and params only; data (including data-room files) is mounted at run
+# time, and secrets never leave the host.
+data/
+outputs/
+logs/
+reports/
+notebooks/
+docs/
+app/
+tests/
+tools/
+evals/
+.venv/
+.git/
+.dvc/
+.env
+**/__pycache__/
+**/.DS_Store
