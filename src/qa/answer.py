@@ -246,14 +246,27 @@ def query_embedder(client, params: dict):
     return embed
 
 
+def numeric_problems(mc: ModelClaim, res: Resolver, tol: float) -> list[str]:
+    """Brief Part 4 item 3: every number in the claim text must match a value the same claim references."""
+    from src.qa.lint import lint_claim
+    refs = {}
+    for n in mc.numbers:
+        if res.known(n.ref_type, n.ref):
+            item = {"fact_id": res.facts, "calc_id": res.calcs, "claim_id": res.claims}[n.ref_type][n.ref]
+            refs[n.ref] = item.get("value")
+    return lint_claim(mc.text, refs, tol)
+
+
 def answer_question(question: str, scope: str, ctx, *, llm, records: dict, registry: Path,
-                    checks=(structure_problems,)) -> Answer:
+                    checks=None) -> Answer:
     """Evidence -> model -> checks; a claim that fails a check is sent back once with the feedback
     (qa.max_regenerations); if it still fails it is dropped and the answer is marked partially abstained."""
     from src.calc import core as calc
     from src.qa.evidence import gather
     ev = gather(question, scope, ctx)
     res = Resolver(ev, records)
+    tol = float(ctx.params["qa"]["numeric_tolerance_rel"])
+    checks = checks or (structure_problems, lambda mc, r: numeric_problems(mc, r, tol))
 
     def problems(out: ModelAnswer) -> dict[int, list[str]]:
         found = {}

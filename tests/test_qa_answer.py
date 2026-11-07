@@ -15,7 +15,7 @@ import src.qa.evidence as evidence  # noqa: E402
 from src.qa import answer as qa  # noqa: E402
 from src.calc import core as calc  # noqa: E402
 
-PARAMS = {"qa": {"max_regenerations": 1}, "llm": {"models": {"large": "m"}}}
+PARAMS = {"qa": {"max_regenerations": 1, "numeric_tolerance_rel": 0.005}, "llm": {"models": {"large": "m"}}}
 
 # ---- evidence helpers ----
 
@@ -150,3 +150,13 @@ def test_prompt_asks_for_minus_signs_and_lists_every_evidence_id():
     assert "minus sign, never brackets" in msgs[0]["content"]
     for i in ("F-rev25", "F-rev24", GROWTH["calc_id"], "C-gross", "DR-kestrel-001:p0003_b002"):
         assert i in msgs[1]["content"]
+
+
+def test_a_number_that_does_not_match_its_reference_is_regenerated_with_the_linter_feedback(run):
+    wrong = qa.ModelAnswer(abstain=False, claims=[claim("Net revenue was $59.0 million.", "fact",
+                                                        ("$59.0 million", "fact_id", "F-rev25"))])
+    right = qa.ModelAnswer(abstain=False, claims=[claim("Net revenue was $59.3 million.", "fact",
+                                                        ("$59.3 million", "fact_id", "F-rev25"))])
+    out, llm, _ = run(wrong, right)
+    assert out.status == "answered" and len(llm.calls) == 2
+    assert '"$59.0 million" (read as 59000000.0) matches no value' in llm.calls[1][1]["content"]
