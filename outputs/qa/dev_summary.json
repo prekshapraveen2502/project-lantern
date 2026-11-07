@@ -1,0 +1,43 @@
+{
+ "citations": {
+  "cited_numbers": 61,
+  "cited_numbers_contained_in_block": 60,
+  "problems": {
+   "dev-K05": [
+    "C-4f9f69d63c5e: value 5000000000.0 not shown in DR-kestrel-008:t009"
+   ]
+  },
+  "resolve_to_a_block": 75,
+  "total": 75
+ },
+ "coverage": {
+  "abstained": [
+   "dev-K12"
+  ],
+  "answerable": 32,
+  "not_abstained": 31,
+  "rate": 0.9688
+ },
+ "lint": {
+  "false_positive_spans": [],
+  "false_positives": 0,
+  "labelled_spans": 108,
+  "linter_numbers": 59,
+  "missed_numbers": [],
+  "precision": 1.0,
+  "true_positives": 59,
+  "wrong_values": []
+ },
+ "numbers": {
+  "answers_with_dropped_claims": 1,
+  "in_answers": 57,
+  "linted_and_resolved": 57,
+  "unresolved": {}
+ },
+ "status": {
+  "answered": 31,
+  "not_disclosed": 7,
+  "partially_abstained": 1
+ },
+ "tasks": 39
+}

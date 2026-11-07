@@ -19,35 +19,6 @@ from src.qa import lint  # noqa: E402
 LABELS = [json.loads(l) for l in open(ROOT / "tests" / "fixtures" / "lint" / "labelled_numbers.jsonl", encoding="utf-8")]
 
 
-def labelled_spans(row):
-    out, pos = [], 0
-    for t in row["tokens"]:
-        i = row["text"].find(t["span"], pos)
-        out.append({**t, "start": i, "end": i + len(t["span"])})
-        pos = i + len(t["span"])
-    return out
-
-
-def score():
-    tp, fp, missed, wrong = [], [], [], []
-    for row in LABELS:
-        gold = labelled_spans(row)
-        got = lint.numbers(row["text"])
-        for s in got:
-            over = [g for g in gold if g["start"] < s.end and s.start < g["end"]]
-            if any(g["label"] == "number" for g in over):
-                g = next(g for g in over if g["label"] == "number")
-                tp.append((row["id"], s.text))
-                if not lint.close(s.value, g["value"], 1e-9):
-                    wrong.append((row["id"], s.text, s.value, g["value"]))
-            else:
-                fp.append((row["id"], s.text, [g.get("type") for g in over]))
-        for g in gold:
-            if g["label"] == "number" and not any(s.start < g["end"] and g["start"] < s.end for s in got):
-                missed.append((row["id"], g["span"]))
-    return tp, fp, missed, wrong
-
-
 def test_labelled_set_size():
     spans = [t for r in LABELS for t in r["tokens"]]
     assert len(spans) >= 50 and sum(t["label"] == "exclude" for t in spans) >= 20
@@ -55,15 +26,13 @@ def test_labelled_set_size():
 
 
 def test_linter_precision_on_the_labelled_numbers(capsys):
-    tp, fp, missed, wrong = score()
-    precision = len(tp) / (len(tp) + len(fp))
+    r = lint.score_labelled(ROOT / "tests" / "fixtures" / "lint" / "labelled_numbers.jsonl")
     with capsys.disabled():
-        print(f"\n[lint] labelled spans {sum(len(r['tokens']) for r in LABELS)}; linter numbers {len(tp) + len(fp)}: "
-              f"TP {len(tp)}, FP {len(fp)}, precision {precision:.4f}; labelled numbers missed {len(missed)}; "
-              f"wrong values {len(wrong)}")
-        for x in fp + missed + wrong:
-            print("   ", x)
-    assert not fp and not missed and not wrong
+        print(f"\n[lint] labelled spans {r['labelled_spans']}; linter numbers {r['linter_numbers']}: "
+              f"TP {r['true_positives']}, FP {r['false_positives']}, precision {r['precision']}; "
+              f"missed {len(r['missed_numbers'])}; wrong values {len(r['wrong_values'])}")
+    assert r["labelled_spans"] == 108
+    assert not r["false_positive_spans"] and not r["missed_numbers"] and not r["wrong_values"]
 
 
 @pytest.mark.parametrize("text,value", [

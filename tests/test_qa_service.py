@@ -116,3 +116,60 @@ def test_answer_calls_the_pipeline_and_a_replay_cache_miss_is_503(db, tmp_path):
     got = TestClient(create_app(facts_db=db, calcs=tmp_path / "c.jsonl", answer_fn=miss)).post(
         "/answer", json={"question": "revenue?", "scope": "kestrel"})
     assert got.status_code == 503 and "not in replay cache" in got.json()["detail"]
+
+
+# ---- run_dev acceptance checks (src/qa/run_dev.py) on a toy store ----
+
+@pytest.fixture
+def check_db(tmp_path):
+    import duckdb
+    p = tmp_path / "f.duckdb"
+    con = duckdb.connect(str(p))
+    con.execute("create table facts (fact_id varchar, doc_id varchar, value double, scale integer, tier integer, "
+                "citation json)")
+    con.execute("insert into facts values ('F-rev', 'DR-k-005', 59300000, 6, 3, "
+                "'{\"kind\": \"sheet_cell\", \"block_id\": \"s001\", \"cell\": \"P&L!D6\"}')")
+    con.execute("create table claims (claim_id varchar, doc_id varchar, block_id varchar, value double, scale integer, "
+                "tier integer)")
+    con.execute("insert into claims values ('C-g', 'DR-k-001', 'p3', 96400000, 6, 4)")
+    con.close()
+    return p
+
+
+def answer_with(text, refs, cites):
+    return {"status": "answered", "rendered": text, "claims": [{"text": text, "numbers": [
+        {"value_text": v, "ref_type": t, "ref": r} for v, t, r in refs], "citations": cites}]}
+
+
+def test_check_answer_relints_against_the_store_and_finds_numbers_in_their_blocks(check_db):
+    from src.qa.run_dev import Blocks, check_answer
+    blocks = Blocks({("DR-k-005", "s001"): {"text": "USD millions | FY2025\nNet revenue | 59.3"},
+                     ("DR-k-001", "p3"): {"text": "FY2025 revenue of $96.4m"}}, Path("/nonexistent"))
+    cite = lambda d, b, t: {"doc_id": d, "block_id": b, "page": None, "bbox": None, "tier": t}
+    ok = check_answer(answer_with("Net revenue was $59.3 million.", [("$59.3 million", "fact_id", "F-rev")],
+                                  [cite("DR-k-005", "s001", 3)]), check_db, {}, blocks, 0.005)
+    assert (ok["numbers"], ok["numbers_resolved"], ok["cited_numbers_contained"], ok["citations_resolved"]) == (1, 1, 1, 1)
+    claim = check_answer(answer_with("The CIM says $96.4 million.", [("$96.4 million", "claim_id", "C-g")],
+                                     [cite("DR-k-001", "p3", 4)]), check_db, {}, blocks, 0.005)
+    assert claim["cited_numbers_contained"] == 1 and not claim["citation_problems"]
+
+
+def test_check_answer_reports_unresolved_numbers_and_missing_blocks(check_db):
+    from src.qa.run_dev import Blocks, check_answer
+    blocks = Blocks({("DR-k-005", "s001"): {"text": "Net revenue | 48.7"}}, Path("/nonexistent"))
+    cite = {"doc_id": "DR-k-009", "block_id": "x", "page": None, "bbox": None, "tier": 3}
+    got = check_answer(answer_with("Net revenue was $59.0 million, 3 times.", [("$59.0 million", "fact_id", "F-rev")],
+                                   [cite]), check_db, {}, blocks, 0.005)
+    assert got["numbers"] == 2 and got["numbers_resolved"] == 0 and len(got["unresolved"]) == 2
+    assert got["citations_resolved"] == 0 and got["cited_numbers_contained"] == 0
+    assert any("does not resolve" in p for p in got["citation_problems"])
+    assert any("not shown in DR-k-005:s001" in p for p in got["citation_problems"])
+
+
+def test_a_cost_stored_positive_is_found_as_shown_in_its_block(tmp_path):
+    from src.qa.run_dev import Blocks, contains
+    blocks = Blocks({("DR-k-005", "s001"): {"text": "USD millions\nPass-through costs | -30.2 | -37.1"}}, Path("/x"))
+    item = {"kind": "fact", "doc_id": "DR-k-005", "value": 37.1e6, "scale": 6,
+            "citation": {"kind": "sheet_cell", "block_id": "s001"}, "lineage": {"sign_flipped": True}}
+    assert contains(blocks, item, 0.005)[0]
+    assert not contains(blocks, {**item, "lineage": {}}, 0.005)[0]

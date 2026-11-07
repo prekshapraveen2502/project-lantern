@@ -156,3 +156,35 @@ def lint_claim(text: str, refs: dict[str, float | None], tol: float) -> list[str
             out.append(f'"{s.text}" (read as {s.value!r}) matches no value this claim references ({listed}); '
                        f"write the referenced value, or remove the number.")
     return out
+
+
+def score_labelled(path) -> dict:
+    """Linter precision on a labelled file (tests/fixtures/lint/labelled_numbers.jsonl). A linter number is a true
+    positive when it overlaps a span labelled number, else a false positive; also lists labelled numbers the linter
+    missed and true positives whose value differs from the label."""
+    import json
+    tp = fp = 0
+    fps, missed, wrong, spans = [], [], [], 0
+    for row in map(json.loads, open(path, encoding="utf-8")):
+        gold, pos = [], 0
+        for t in row["tokens"]:
+            i = row["text"].find(t["span"], pos)
+            gold.append({**t, "start": i, "end": i + len(t["span"])})
+            pos = i + len(t["span"])
+        spans += len(gold)
+        got = numbers(row["text"])
+        for s in got:
+            hit = [g for g in gold if g["start"] < s.end and s.start < g["end"] and g["label"] == "number"]
+            if hit:
+                tp += 1
+                if not close(s.value, hit[0]["value"], 1e-9):
+                    wrong.append([row["id"], s.text, s.value, hit[0]["value"]])
+            else:
+                fp += 1
+                fps.append([row["id"], s.text])
+        for g in gold:
+            if g["label"] == "number" and not any(s.start < g["end"] and g["start"] < s.end for s in got):
+                missed.append([row["id"], g["span"]])
+    return {"labelled_spans": spans, "linter_numbers": tp + fp, "true_positives": tp, "false_positives": fp,
+            "precision": round(tp / (tp + fp), 4) if tp + fp else None, "false_positive_spans": fps,
+            "missed_numbers": missed, "wrong_values": wrong}

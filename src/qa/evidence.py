@@ -88,12 +88,13 @@ def concept_words(concept: str) -> list[str]:
     return [w.lower() for w in re.findall(r"[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+", local) if w.lower() not in CONCEPT_STOP]
 
 
-def concept_score(concept: str, qwords: set[str]) -> tuple[float, int]:
-    """(matched / concept words, matched words): the highest share wins; on a tie, the concept that matches more
-    words (decision 2026-11-06 Q1 a). Concepts below CONCEPT_MIN are never used."""
+def concept_score(concept: str, qwords: set[str]) -> tuple[int, float]:
+    """(matched words, matched / concept words): the concept matching the most question words wins, then the higher
+    share; a concept whose share is below CONCEPT_MIN is never used (decision 2026-11-06, Q1 a revised to b: the
+    one-word concept Cash must not beat a cash-flow line). Tuned on the dev suite; the variant suite is held out."""
     w = concept_words(concept)
     hit = sum(x in qwords for x in w)
-    return (hit / len(w), hit) if w else (0.0, 0)
+    return (hit, hit / len(w)) if w else (0, 0.0)
 
 
 def question_years(question: str) -> list[int]:
@@ -197,7 +198,7 @@ def gather(question: str, scope: str, ctx: Context) -> dict:
             rows = [store._row(cur, r) for r in cur.fetchall()]
             qwords = set(norm(question).split())
             scored = {c: concept_score(c, qwords) for c in {r["concept"] for r in rows}}
-            best = max((s for s in scored.values() if s[0] >= CONCEPT_MIN), default=None)
+            best = max((s for s in scored.values() if s[1] >= CONCEPT_MIN), default=None)
             concepts = sorted(c for c, s in scored.items() if s == best)
             for f in rows:
                 if f["concept"] in concepts and f["fact_id"] not in seen and len(facts) < MAX_FACTS:

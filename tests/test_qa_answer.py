@@ -35,8 +35,9 @@ def test_concept_score_follows_the_approved_rule():
     q = set(evidence.norm("What was Shift4's net cash used in investing activities in 2025?").split())
     assert evidence.concept_words("us-gaap:NetCashProvidedByUsedInInvestingActivities") == \
         ["net", "cash", "provided", "investing", "activities"]
-    assert evidence.concept_score("us-gaap:NetCashProvidedByUsedInInvestingActivities", q) == (0.8, 4)
-    assert evidence.concept_score("us-gaap:Cash", q) == (1.0, 1)        # highest share wins (decision Q1 a)
+    inv = evidence.concept_score("us-gaap:NetCashProvidedByUsedInInvestingActivities", q)
+    assert inv == (4, 0.8) and inv > evidence.concept_score("us-gaap:Cash", q) == (1, 1.0)   # more words wins (b)
+    assert evidence.concept_score("us-gaap:CashAndCashEquivalentsPeriodIncreaseDecrease", q)[1] < 0.75
 
 
 def test_entity_aliases_from_companyfacts(tmp_path):
