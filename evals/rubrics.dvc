@@ -1,0 +1,6 @@
+outs:
+- md5: dc419a7142839d0babe89947ee917834.dir
+  size: 2662
+  nfiles: 1
+  hash: md5
+  path: rubrics
