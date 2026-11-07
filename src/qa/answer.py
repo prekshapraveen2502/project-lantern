@@ -293,12 +293,35 @@ def answer_question(question: str, scope: str, ctx, *, llm, records: dict, regis
     calc.register([res.calcs[n.ref] for c in claims for n in c.numbers if n.ref_type == "calc_id"], registry)
     status = "partially_abstained" if bad else "answered"
     reason = f"{len(bad)} claim(s) dropped: they failed the numeric check after one regeneration." if bad else None
-    return Answer(status=status, reason=reason, claims=claims, rendered=render(claims))
+    return Answer(status=status, reason=reason, claims=claims, rendered=render(claims, getattr(ctx, "forms", {})))
 
 
 def not_disclosed(reason: str) -> Answer:
     return Answer(status="not_disclosed", reason=reason, claims=[], rendered="Not disclosed. " + reason)
 
 
-def render(claims: list[Claim]) -> str:
-    return " ".join(c.text for c in claims)
+MANAGEMENT_SOURCE = {"cim": "CIM", "deck": "management deck", "transcript": "management call"}
+
+
+def tier_label(c: Claim, forms: dict) -> str | None:
+    """Brief Part 4 item 4 and the Section 5 tier table: tier-3/4/5 content is labelled in the prose."""
+    if c.tier == 3:
+        return "per seller financials"
+    if c.tier == 4:
+        docs = [MANAGEMENT_SOURCE.get(forms.get(x.doc_id, "")) for x in c.citations if x.tier == 4]
+        return f"per {next((d for d in docs if d), 'management')}, unverified"
+    if c.tier == 5:
+        return "per public website, unverified"
+    return None
+
+
+def render(claims: list[Claim], forms: dict | None = None) -> str:
+    out = []
+    for c in claims:
+        label = tier_label(c, forms or {})
+        text = c.text.strip()
+        if label:
+            end = text[-1] if text and text[-1] in ".!?" else "."
+            text = f"{text.rstrip('.!?')} ({label}){end}"
+        out.append(text)
+    return " ".join(out)

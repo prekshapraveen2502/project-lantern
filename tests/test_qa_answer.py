@@ -160,3 +160,18 @@ def test_a_number_that_does_not_match_its_reference_is_regenerated_with_the_lint
     out, llm, _ = run(wrong, right)
     assert out.status == "answered" and len(llm.calls) == 2
     assert '"$59.0 million" (read as 59000000.0) matches no value' in llm.calls[1][1]["content"]
+
+
+def test_tier_3_4_5_content_is_labelled_in_the_prose():
+    cite = lambda doc, tier: qa.Citation(doc_id=doc, page=None, bbox=None, block_id="b", tier=tier)
+    c = lambda text, tier, doc, label="fact": qa.Claim(text=text, label=label, tier=tier, numbers=[],
+                                                       citations=[cite(doc, tier)])
+    forms = {"DR-kestrel-001": "cim", "DR-kestrel-006": "deck", "DR-kestrel-008": "transcript"}
+    got = qa.render([c("Filed revenue was X.", 1, "0001"), c("Net revenue was X.", 3, "DR-kestrel-005"),
+                     c("The CIM says X.", 4, "DR-kestrel-001", "management_claim"),
+                     c("The deck shows X", 4, "DR-kestrel-006", "management_claim"),
+                     c("The CFO said X.", 4, "DR-kestrel-008", "management_claim"),
+                     c("The website says X.", 5, "WEB-1", "public_web")], forms)
+    assert got == ("Filed revenue was X. Net revenue was X (per seller financials). The CIM says X (per CIM, unverified). "
+                   "The deck shows X (per management deck, unverified). The CFO said X (per management call, unverified). "
+                   "The website says X (per public website, unverified).")
