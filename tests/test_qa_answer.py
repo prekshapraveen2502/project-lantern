@@ -175,3 +175,13 @@ def test_tier_3_4_5_content_is_labelled_in_the_prose():
     assert got == ("Filed revenue was X. Net revenue was X (per seller financials). The CIM says X (per CIM, unverified). "
                    "The deck shows X (per management deck, unverified). The CFO said X (per management call, unverified). "
                    "The website says X (per public website, unverified).")
+
+
+def test_an_abstention_reason_with_a_number_is_regenerated_then_replaced(run):
+    numbered = qa.ModelAnswer(abstain=True, reason="Only a CY2025 expectation of $64.2m is given.")
+    out, llm, _ = run(numbered, numbered)
+    assert len(llm.calls) == 2 and "Abstention reason:" in llm.calls[1][1]["content"]
+    assert out.rendered == "Not disclosed. The evidence does not answer the question."
+    clean = qa.ModelAnswer(abstain=True, reason="The data room has no FY2026 actuals.")
+    out, llm, _ = run(numbered, clean)
+    assert out.rendered == "Not disclosed. The data room has no FY2026 actuals."

@@ -86,7 +86,8 @@ Rules:
 4. A value from a claim C-... is what management (or a website) says, not a fact: put it in its own claim labelled
    management_claim (public_web for web pages). Facts and calculations go in claims labelled fact.
 5. citations: the evidence blocks (doc_id:block_id) that support the claim.
-6. If the evidence does not answer the question, set abstain to true, give the reason, and write no claims."""
+6. If the evidence does not answer the question, set abstain to true, give the reason in words (no numbers;
+   years and fiscal-period labels are allowed), and write no claims."""
 
 
 def _period(f: dict) -> str:
@@ -269,6 +270,9 @@ def answer_question(question: str, scope: str, ctx, *, llm, records: dict, regis
     checks = checks or (structure_problems, lambda mc, r: numeric_problems(mc, r, tol))
 
     def problems(out: ModelAnswer) -> dict[int, list[str]]:
+        if out.abstain:                                            # item 5: no unreferenced number in the reason
+            nums = lint_numbers(out.reason or "")
+            return {-1: [f'"{n.text}" has no reference; give the reason without numbers.' for n in nums]} if nums else {}
         found = {}
         for i, mc in enumerate(out.claims):
             p = [x for check in checks for x in check(mc, res)]
@@ -276,16 +280,20 @@ def answer_question(question: str, scope: str, ctx, *, llm, records: dict, regis
                 found[i] = p
         return found
 
+    def say(i: int, out: ModelAnswer) -> str:
+        return "Abstention reason: " if i == -1 else f'Claim "{out.claims[i].text}": '
+
     out = ask(llm, ctx.params, question, ev)
-    bad = {} if out.abstain else problems(out)
+    bad = problems(out)
     for _ in range(int(ctx.params["qa"]["max_regenerations"])):
         if not bad:
             break
-        feedback = "\n".join(f'Claim "{out.claims[i].text}": ' + " ".join(p) for i, p in bad.items())
+        feedback = "\n".join(say(i, out) + " ".join(p) for i, p in bad.items())
         out = ask(llm, ctx.params, question, ev, feedback)
-        bad = {} if out.abstain else problems(out)
+        bad = problems(out)
     if out.abstain or not out.claims:
-        return not_disclosed(out.reason or "The evidence does not answer the question.")
+        reason = DEFAULT_REASON if (-1 in bad or not out.reason) else out.reason
+        return not_disclosed(reason)
     keep = [mc for i, mc in enumerate(out.claims) if i not in bad]
     if not keep:
         return not_disclosed("Every claim failed the numeric check after one regeneration.")
@@ -294,6 +302,14 @@ def answer_question(question: str, scope: str, ctx, *, llm, records: dict, regis
     status = "partially_abstained" if bad else "answered"
     reason = f"{len(bad)} claim(s) dropped: they failed the numeric check after one regeneration." if bad else None
     return Answer(status=status, reason=reason, claims=claims, rendered=render(claims, getattr(ctx, "forms", {})))
+
+
+DEFAULT_REASON = "The evidence does not answer the question."
+
+
+def lint_numbers(text: str):
+    from src.qa.lint import numbers
+    return numbers(text)
 
 
 def not_disclosed(reason: str) -> Answer:
