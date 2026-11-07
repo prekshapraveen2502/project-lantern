@@ -157,4 +157,34 @@ was not measured. Latency is not part of the choice rule.
 
 ## Isolation
 
-Added with Part 3 item 3 (`tests/test_retrieval.py`).
+Brief Part 3 item 3. `tests/test_retrieval.py` runs all 60 qrels queries in `deal_a` scope through
+`src/retrieve.py` `retrieve()` with the pinned `retrieval` params and asserts zero `deal_b` records and zero
+`deal_b` canaries in what comes back.
+
+- **CI** runs it against the committed fixture `tests/fixtures/isolation/`: 8 toy deal_a chunks, 8 toy deal_b chunks
+  on the same themes as the queries (each with a planted canary), 3 public chunks. They are embedded with a hashed
+  bag-of-words vector (no model, no DVC).
+- **Teeth**: `test_the_isolation_check_finds_leaks_when_the_filter_is_removed` always runs and asserts that, without
+  the store filter, the same check finds deal_b records and canaries. The switch `--no-scope-filter` (defined in
+  `tests/conftest.py`) removes the filter for the main test as well. `src/retrieve.py` has no bypass.
+- **Full index**: `test_full_index_deal_a_scope_returns_no_deal_b` runs on the pinned collection in `data/index`,
+  with the canaries from `data/dataroom/canaries_visible.json`. It is skipped until deal_a and deal_b are in the
+  index; today the index holds Kestrel and the public filings only.
+
+Normal run (`python -m pytest tests/test_retrieval.py -v -rs`):
+
+```
+tests/test_retrieval.py::test_every_query_in_deal_a_scope_returns_no_deal_b_records_or_canaries PASSED [ 33%]
+tests/test_retrieval.py::test_the_isolation_check_finds_leaks_when_the_filter_is_removed PASSED [ 66%]
+tests/test_retrieval.py::test_full_index_deal_a_scope_returns_no_deal_b SKIPPED [100%]
+SKIPPED [1] tests/test_retrieval.py:111: pending deal_a/deal_b: not in the index yet ({'deal_a': False, 'deal_b': False})
+========================= 2 passed, 1 skipped in 1.18s =========================
+```
+
+Run with the filter removed (`python -m pytest tests/test_retrieval.py --no-scope-filter -q -rs`), which fails:
+
+```
+E       AssertionError: 502 deal_b leaks in deal_a scope, first: ['K01: deal_b record dB-00 (DR-deal_b-001)', 'K01: deal_b canary TOYB-CANARY-00X7Q in dB-00', 'K01: deal_b record dB-06 (DR-deal_b-001)', 'K01: deal_b canary TOYB-CANARY-06X7Q in dB-06', 'K02: deal_b record dB-00 (DR-deal_b-001)']
+SKIPPED [1] tests/test_retrieval.py:111: pending deal_a/deal_b: not in the index yet ({'deal_a': False, 'deal_b': False})
+1 failed, 1 passed, 1 skipped in 1.00s
+```
