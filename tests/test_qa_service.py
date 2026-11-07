@@ -102,3 +102,17 @@ def test_answer_rejects_unknown_scopes(client, scope):
 
 def test_answer_needs_a_question(client):
     assert client.post("/answer", json={"question": "", "scope": "kestrel"}).status_code == 422
+
+
+def test_answer_calls_the_pipeline_and_a_replay_cache_miss_is_503(db, tmp_path):
+    from fastapi.testclient import TestClient
+    from services.qa.app import create_app
+    ok = TestClient(create_app(facts_db=db, calcs=tmp_path / "c.jsonl",
+                               answer_fn=lambda q, s: {"status": "answered", "question": q, "scope": s}))
+    assert ok.post("/answer", json={"question": "revenue?", "scope": "kestrel"}).json()["scope"] == "kestrel"
+
+    def miss(q, s):
+        raise RuntimeError("cache miss abc123")
+    got = TestClient(create_app(facts_db=db, calcs=tmp_path / "c.jsonl", answer_fn=miss)).post(
+        "/answer", json={"question": "revenue?", "scope": "kestrel"})
+    assert got.status_code == 503 and "not in replay cache" in got.json()["detail"]
