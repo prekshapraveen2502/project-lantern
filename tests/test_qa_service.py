@@ -173,3 +173,11 @@ def test_a_cost_stored_positive_is_found_as_shown_in_its_block(tmp_path):
             "citation": {"kind": "sheet_cell", "block_id": "s001"}, "lineage": {"sign_flipped": True}}
     assert contains(blocks, item, 0.005)[0]
     assert not contains(blocks, {**item, "lineage": {}}, 0.005)[0]
+
+
+@pytest.mark.parametrize("text,value", [("We'll do nearly five billion dollars of volume.", 5e9),
+                                        ("about twenty-five percent of revenue", 0.25),
+                                        ("three hundred and ten clinics", 310), ("one point", 1)])
+def test_block_check_reads_numbers_written_in_words(text, value):
+    from src.qa.run_dev import word_numbers
+    assert value in word_numbers(text)

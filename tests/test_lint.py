@@ -64,3 +64,8 @@ def test_lint_claim_accepts_matches_within_tolerance_and_explains_failures():
     assert len(bad) == 2 and '"$59.0 million"' in bad[0] and "F-rev = 59300000.0" in bad[0]
     assert lint.lint_claim("Revenue was 59.3.", refs, 0.005)            # no scale -> 59.3, no match
     assert lint.lint_claim("Kestrel has 410 employees.", {}, 0.005)     # a number with no reference
+
+
+def test_minus_before_the_currency_sign():
+    got = lint.numbers("Net cash used in investing activities was -$194.2 million in 2025.")
+    assert len(got) == 1 and got[0].value == -194.2e6 and got[0].text == "-$194.2 million"

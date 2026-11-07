@@ -79,15 +79,19 @@ Rules:
 2. Every number you write in a claim must come from exactly one evidence item (a fact F-..., a calculation CALC-...,
    or a management/web claim C-...). List it in the claim's numbers with value_text exactly as written in the text
    and the item's id. Write the item's value, rounded to at most one decimal place in the unit you choose
-   (e.g. 59300000 -> $59.3 million, 0.168 -> 16.8%). Write negative values with a minus sign, never brackets.
+   (e.g. 59300000 -> $59.3 million, 0.168 -> 16.8%). Write a negative value with the minus sign before the
+   currency sign (e.g. -$194.2 million), never brackets.
 3. Never compute a number yourself and never use a number from your own knowledge. Do not write any other
-   numbers (counts, durations, rankings) unless they are an evidence item's value. Years and fiscal-period labels
-   such as FY2025 are allowed.
+   numbers (counts, durations, rankings) unless they are an evidence item's value. Never repeat a number from the
+   question unless it is the value of an evidence item you reference. Name a metric as the evidence labels it
+   (e.g. top10_customer_share), not with a number from the question. Years and fiscal-period labels such as
+   FY2025 are allowed.
 4. A value from a claim C-... is what management (or a website) says, not a fact: put it in its own claim labelled
    management_claim (public_web for web pages). Facts and calculations go in claims labelled fact.
 5. citations: the evidence blocks (doc_id:block_id) that support the claim.
-6. If the evidence does not answer the question, set abstain to true, give the reason in words (no numbers;
-   years and fiscal-period labels are allowed), and write no claims."""
+6. If the evidence does not answer the question, or does not cover the period or entity the question asks about,
+   set abstain to true, give the reason in words (no numbers; years and fiscal-period labels are allowed), and
+   write no claims. Never substitute another period or entity."""
 
 
 def _period(f: dict) -> str:

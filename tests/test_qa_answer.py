@@ -148,7 +148,9 @@ def test_abstention_carries_the_reason(run):
 
 def test_prompt_asks_for_minus_signs_and_lists_every_evidence_id():
     msgs = qa.messages("q", EV)
-    assert "minus sign, never brackets" in msgs[0]["content"]
+    rules = " ".join(msgs[0]["content"].split())
+    assert "minus sign before the currency sign (e.g. -$194.2 million), never brackets" in rules
+    assert "Never repeat a number from the question" in rules and "Never substitute another period" in rules
     for i in ("F-rev25", "F-rev24", GROWTH["calc_id"], "C-gross", "DR-kestrel-001:p0003_b002"):
         assert i in msgs[1]["content"]
 

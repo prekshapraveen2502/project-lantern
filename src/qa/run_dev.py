@@ -20,6 +20,7 @@ No dev answer or expected value is used by the pipeline; expected values are not
 from __future__ import annotations
 
 import argparse
+import re
 import json
 from pathlib import Path
 
@@ -92,6 +93,34 @@ def ref_value(ref_type: str, ref: str, db: Path, calcs: dict):
     return (store.get(db, ref) or {}).get("value")
 
 
+UNITS = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve thirteen "
+                                      "fourteen fifteen sixteen seventeen eighteen nineteen".split())}
+TENS = {w: 10 * i for i, w in enumerate("_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()) if i > 1}
+WORD_SCALES = {"hundred": 1e2, "thousand": 1e3, "million": 1e6, "billion": 1e9, "trillion": 1e12}
+
+
+def word_numbers(text: str) -> list[float]:
+    """Numbers written in words in a block ("nearly five billion dollars" -> 5e9, "twenty-five percent" -> 0.25);
+    decision 2026-11-06 (open item 1 a): the block-contains check reads them too, with the same tolerance."""
+    out, cur, total, seen = [], 0.0, 0.0, False
+    for w in re.findall(r"[a-z]+|%", text.lower().replace("-", " ")) + ["."]:
+        if w in UNITS or w in TENS:
+            cur += UNITS.get(w, TENS.get(w, 0)); seen = True
+        elif w in WORD_SCALES and seen:
+            if w == "hundred":
+                cur *= 100
+            else:
+                total += cur * WORD_SCALES[w]; cur = 0.0
+        elif w in ("and",) and seen:
+            continue
+        else:
+            if seen:
+                v = total + cur
+                out.append(v / 100 if w in ("percent", "%") else v)
+            cur, total, seen = 0.0, 0.0, False
+    return out
+
+
 def contains(blocks: Blocks, item: dict, tol: float) -> tuple[bool, str]:
     """Is the item's value shown in its cited block? Returns (ok, where)."""
     from src.facts.xbrl_read import citation_value
@@ -109,8 +138,8 @@ def contains(blocks: Blocks, item: dict, tol: float) -> tuple[bool, str]:
         return False, f"{item['doc_id']}:{block} not found"
     scale = 10 ** int(item.get("scale") or 0)
     shown = -item["value"] if (item.get("lineage") or {}).get("sign_flipped") else item["value"]   # Part 1: costs
-    ok = any(lint.close(n.value, shown, tol) or lint.close(n.value * scale, shown, tol)          # stored positive
-             for n in lint.numbers(text))
+    found = [n.value for n in lint.numbers(text)] + word_numbers(text)                           # stored positive
+    ok = any(lint.close(v, shown, tol) or lint.close(v * scale, shown, tol) for v in found)
     return ok, f"{item['doc_id']}:{block}"
 
 
