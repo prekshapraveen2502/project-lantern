@@ -212,15 +212,17 @@ def refs_of(c) -> list[str]:
 GAP_SENTENCE = re.compile(r"^(?:the\s+)?(.+?)\s+(?:is|are)\s+not\s+disclosed\b.*$", re.I)
 
 
-def render_gap(c) -> str | None:
+def render_gap(c, forms: dict) -> str | None:
     """Disclosure Gaps (brief: bullets with the literal "Not disclosed."): a number-free claim "X is/are not
-    disclosed ..." is rendered as "- X: Not disclosed. [refs]"; anything else is rendered as a normal bullet."""
+    disclosed ..." is rendered as "- X: Not disclosed. (tier label) [refs]" (the tier label as in Part 4 item 4);
+    anything else is rendered as a normal bullet."""
     m = GAP_SENTENCE.match(c.text.strip())
     if c.numbers or not m:
         return None
     item = m.group(1).strip()
-    refs = refs_of(c)
-    return f"- {item[0].upper() + item[1:]}: Not disclosed." + (f" [{'; '.join(refs)}]" if refs else "")
+    label, refs = tier_label(c, forms), refs_of(c)
+    return (f"- {item[0].upper() + item[1:]}: Not disclosed." + (f" ({label})" if label else "")
+            + (f" [{'; '.join(refs)}]" if refs else ""))
 
 
 def render_line(c, forms: dict, bullet: bool) -> str:
@@ -295,7 +297,7 @@ def write_memo(mode: str, deal: str, template: dict, evidence_for, runner: Runne
         lines += [f"## {sec['heading']}", ""]
         if sec["style"] == "gaps":
             body = [f"- {g.strip().rstrip('.')}: Not disclosed." for g in gaps] + \
-                   [render_gap(c) or render_line(c, forms, True) for c in keep]
+                   [render_gap(c, forms) or render_line(c, forms, True) for c in keep]
         else:
             body = [render_line(c, forms, sec["style"] == "bullets") for c in keep]
         lines += (body or ["Not disclosed."]) + [""]

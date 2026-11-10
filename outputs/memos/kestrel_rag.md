@@ -78,6 +78,6 @@ Comparable-company valuation is pending.
 
 ## Disclosure Gaps
 
-- Customer churn by cohort: Not disclosed. [DR-kestrel-001:p0011_b001]
-- Chargeback rates by vertical: Not disclosed. [DR-kestrel-001:p0011_b001]
-- Terms of the sponsor-bank agreement: Not disclosed. [DR-kestrel-001:p0011_b001]
+- Customer churn by cohort: Not disclosed. (per CIM, unverified) [DR-kestrel-001:p0011_b001]
+- Chargeback rates by vertical: Not disclosed. (per CIM, unverified) [DR-kestrel-001:p0011_b001]
+- Terms of the sponsor-bank agreement: Not disclosed. (per CIM, unverified) [DR-kestrel-001:p0011_b001]

@@ -55,5 +55,6 @@ def test_render_line_and_gap():
     assert M.render_line(c, forms, False) == ("Management claims no partner exceeds 10% of net revenue (per CIM, "
                                               "unverified). [C-bbbbbbbbbbbb; DR-k-001:p0006_b002]")
     g = claim("The terms of the sponsor-bank agreement are not disclosed.", cites=[("DR-k-001", "p0011_b001")])
-    assert M.render_gap(g) == "- Terms of the sponsor-bank agreement: Not disclosed. [DR-k-001:p0011_b001]"
-    assert M.render_gap(c) is None
+    assert M.render_gap(g, forms) == ("- Terms of the sponsor-bank agreement: Not disclosed. (per CIM, unverified) "
+                                      "[DR-k-001:p0011_b001]")
+    assert M.render_gap(c, forms) is None
