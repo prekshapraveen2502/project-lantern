@@ -338,3 +338,33 @@ stages:
     metrics:
       - reports/retrieval_eval.json:
           cache: false
+
+  extract_profile:
+    cmd: python -m src.extract.run --deals kestrel --out data/structured
+    deps:
+      - src/extract/__init__.py
+      - src/extract/profile.py
+      - src/extract/link.py
+      - src/extract/run.py
+      - src/extract/evaluate.py
+      - src/facts/claims.py
+      - src/facts/reconcile.py
+      - src/calc/core.py
+      - src/qa/evidence.py
+      - src/qa/store.py
+      - src/llm/client.py
+      - config/metrics_vocab.yaml
+      - data/dataroom/kestrel/export
+      - data/facts/facts.duckdb
+      - data/facts/discrepancies.jsonl
+      - data/extract_cache
+      - data/reference/kestrel_profile_gold.yaml
+      - data/bench/cs2/extract_profile.csv
+    params:
+      - extract
+      - reconcile.tolerance_rel
+      - llm.provider
+      - llm.models.large
+      - budget.usd_cap_per_task
+    outs:
+      - data/structured/kestrel

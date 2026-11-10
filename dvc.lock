@@ -1317,3 +1317,97 @@ stages:
       hash: md5
       md5: b81d492a9f06c6d08a9c27720fbaf8a7
       size: 43914
+  extract_profile:
+    cmd: python -m src.extract.run --deals kestrel --out data/structured
+    deps:
+    - path: config/metrics_vocab.yaml
+      hash: md5
+      md5: 598918472c07151b4ab188ed62f18c80
+      size: 11846
+    - path: data/bench/cs2/extract_profile.csv
+      hash: md5
+      md5: bba1aba9dd5c38544322f81cb583d44d
+      size: 921
+    - path: data/dataroom/kestrel/export
+      hash: md5
+      md5: 191b5973e6fbacfe0a786ea61388b422.dir
+      size: 3621497
+      nfiles: 99
+    - path: data/extract_cache
+      hash: md5
+      md5: 9ce9318430d9f917255e90da5c8169d9.dir
+      size: 185260
+      nfiles: 82
+    - path: data/facts/discrepancies.jsonl
+      hash: md5
+      md5: ff1f2ef50fcef624a23069275380eaa2
+      size: 2921
+    - path: data/facts/facts.duckdb
+      hash: md5
+      md5: 806c72236e778a0a064fb1139afb7712
+      size: 6041600
+    - path: data/reference/kestrel_profile_gold.yaml
+      hash: md5
+      md5: 948a8c174ad9339d1fb21582535d27a0
+      size: 5600
+    - path: src/calc/core.py
+      hash: md5
+      md5: 6d5c5c4220cac3f0652c058d71e611ca
+      size: 3280
+    - path: src/extract/__init__.py
+      hash: md5
+      md5: d41d8cd98f00b204e9800998ecf8427e
+      size: 0
+    - path: src/extract/evaluate.py
+      hash: md5
+      md5: 19fd8b1d04d73cff1bb5fa66eb0df54c
+      size: 9013
+    - path: src/extract/link.py
+      hash: md5
+      md5: 79f6a72668cd9b2be5acae2591195c61
+      size: 4096
+    - path: src/extract/profile.py
+      hash: md5
+      md5: 9cc45c89cc7901e01c0139f6c718d60e
+      size: 23556
+    - path: src/extract/run.py
+      hash: md5
+      md5: 2a8206e9c2b8cc6d443f26b50c830a53
+      size: 11292
+    - path: src/facts/claims.py
+      hash: md5
+      md5: 12ea67cc7f4792a9ec8e8b2d8f9a32f6
+      size: 13073
+    - path: src/facts/reconcile.py
+      hash: md5
+      md5: cda10d3b436807aadd9efc9b8012165e
+      size: 7606
+    - path: src/llm/client.py
+      hash: md5
+      md5: 2f828be174c1f55d9861f3d36c34bd84
+      size: 5524
+    - path: src/qa/evidence.py
+      hash: md5
+      md5: 627ad1c32b70affd6e96995de1ca0f27
+      size: 12323
+    - path: src/qa/store.py
+      hash: md5
+      md5: bb95851087f7cb0afefa425c299b2a60
+      size: 1480
+    params:
+      params.yaml:
+        budget.usd_cap_per_task: 0.1
+        extract:
+          gold: data/reference/kestrel_profile_gold.yaml
+          max_tokens: 4096
+          bootstrap_resamples: 10000
+          seed: 7
+        llm.models.large: gpt-4.1-mini
+        llm.provider: openai
+        reconcile.tolerance_rel: 0.01
+    outs:
+    - path: data/structured/kestrel
+      hash: md5
+      md5: dfcbbfa5699c229732253e0b6284d9a1.dir
+      size: 154793
+      nfiles: 6

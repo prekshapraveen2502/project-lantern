@@ -1,0 +1,46 @@
+# Part 5 item 3: the screening-memo template, used by both modes (RAG-only and structured payload).
+# Headings are the brief's eight fixed sections, exactly. style: prose (one claim per line), bullets, or gaps
+# (Disclosure Gaps: one bullet per item, "- <item>: Not disclosed."). query: the retrieval query for the RAG-only mode
+# (the structured mode ignores it). instruction: the same text in both modes.
+title: "Screening memo: {codename} ({mode})"
+modes: {rag: RAG-only, structured: structured payload}
+sections:
+  - heading: Company Overview
+    style: prose
+    query: company overview what the company does customers headquarters founded employees
+    instruction: What the company does and for whom, where it is based, when it was founded, its size, and who is
+      running the sale process.
+  - heading: Business Model and Go-to-Market
+    style: prose
+    query: business model revenue streams subscription transaction pricing sales channels recurring revenue sponsor bank
+    instruction: How the company makes money (revenue streams and pricing), how it sells, and how recurring its revenue
+      is. Where a management claim and the seller financials differ, state both.
+  - heading: Financial Profile
+    style: prose
+    query: net revenue gross revenue growth EBITDA adjusted EBITDA add-backs financial summary fiscal year
+    instruction: Revenue (gross and net), growth, EBITDA (reported, management-adjusted and QoE-adjusted) and add-backs,
+      by fiscal year. Where a management claim and the seller financials differ, state both.
+  - heading: Customers and Concentration
+    style: prose
+    query: customer concentration top partner share top ten customers net revenue retention ARR payment volume take rate
+    instruction: Customer and partner concentration, retention, ARR, payment volume and take rate. Where a management
+      claim and the seller financials differ, state both.
+  - heading: Management and Organization
+    style: prose
+    query: management team chief executive officer chief financial officer employees organization
+    instruction: Who runs the company, their roles and backgrounds, and the organization.
+  - heading: Process and Valuation Context
+    style: prose
+    query: sale process adviser recapitalization proposals due date
+    instruction: The sale process (adviser, transaction type, bid type and deadline). Comparable-company valuation is
+      pending; say so in one sentence without numbers.
+  - heading: Key Risks and Diligence Questions
+    style: bullets
+    query: risks change of control contract termination concentration fraud losses chargebacks discrepancy
+    instruction: The main risks, one per item, each with a diligence question. Use the evidence for discrepancies
+      between management claims and seller financials, contract terms and earnings quality.
+  - heading: Disclosure Gaps
+    style: gaps
+    query: not disclosed information not provided churn chargeback rates sponsor bank agreement terms
+    instruction: Items an investor would need that the evidence shows are not disclosed, one per item, in a few
+      words, without numbers.
