@@ -44,6 +44,18 @@ def test_ltm_refuses_mismatched_periods(ytd, prior, why):
         calc.ltm(FY, ytd, prior)
 
 
+def test_ltm_is_the_fy_when_no_ytd_follows_it_and_needs_both_ytds_otherwise():
+    out = calc.ltm(FY)
+    assert out["value"] == 1000.0 and out["fact_ids"] == ["F-fy"] and out["calc_id"] != calc.ltm(FY, H1, H1P)["calc_id"]
+    with pytest.raises(calc.CalcError, match="both"):
+        calc.ltm(FY, H1)
+
+
+def test_sign_convention_a_negative_nci_is_kept_signed_in_ev():
+    out = calc.enterprise_value(PRICE, [inst("F-s", 10.0, "shares")], [], [], [inst("F-nci", -35.0)], [])
+    assert out["value"] == 200.0 - 35.0
+
+
 def test_ltm_refuses_mixed_units():
     with pytest.raises(calc.CalcError, match="different units"):
         calc.ltm(FY, {**H1, "unit": "EUR"}, H1P)

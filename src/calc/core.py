@@ -13,10 +13,12 @@ Part 6 conventions (stated in reports/comps_and_figures.md):
   ids        Part 6 ops hash "role:id" pairs (e.g. "debt:F-..."), so the same fact in a different role is a
              different calculation.
   signs      the store keeps costs positive (metrics_vocab.yaml sign: cost; a negative data-room cost is flipped at
-             load). Costs, D&A, debt, cash, preferred and NCI must be >= 0 here; a negative one is refused
-             (CalcError), never silently flipped. Operating income, EBITDA and net debt may be negative.
+             load). Costs, D&A, debt, cash and preferred must be >= 0 here; a negative one is refused (CalcError),
+             never silently flipped. Operating income, EBITDA, net debt and NCI (equity; a deficit is negative, e.g.
+             XYZ) may be negative.
   LTM        latest FY + current YTD - prior-year YTD; both YTDs the same fiscal_period label (e.g. H1), the prior
-             YTD ending inside the FY and the current YTD ending about a year later.
+             YTD ending inside the FY and the current YTD ending about a year later. When no YTD follows the latest
+             FY (the latest filing is the 10-K), LTM is that FY (ytd and prior_ytd None).
   EBITDA     operating income + depreciation and amortization (cash-flow D&A), on the same basis (LTM or FY).
   EV         price x shares outstanding (sum of the classes given) + debt + preferred + NCI - cash - short-term
              investments (short-term investments are treated as cash-like; the caller passes only those tagged).
@@ -126,10 +128,14 @@ def _date(x: dict, key: str):
     return v if isinstance(v, date) else date.fromisoformat(str(v)[:10])
 
 
-def ltm(fy: dict, ytd: dict, prior_ytd: dict) -> dict:
-    """Last twelve months = latest FY + current YTD - prior-year YTD."""
+def ltm(fy: dict, ytd: dict | None = None, prior_ytd: dict | None = None) -> dict:
+    """Last twelve months = latest FY + current YTD - prior-year YTD (the FY alone when no YTD follows it)."""
     if fy.get("fiscal_period") != "FY":
         raise CalcError(f"{_id(fy)}: not a fiscal-year value ({fy.get('fiscal_period')})")
+    if ytd is None and prior_ytd is None:
+        return _out6("ltm", [("fy", fy)], _value(fy), "fy (no YTD after the latest fiscal year)", fy.get("unit"))
+    if ytd is None or prior_ytd is None:
+        raise CalcError(f"{_id(fy)}: LTM needs both the current and the prior-year YTD, or neither")
     if ytd.get("fiscal_period") != prior_ytd.get("fiscal_period") or ytd.get("fiscal_period") in (None, "FY"):
         raise CalcError(f"{_id(ytd)} and {_id(prior_ytd)}: YTD periods differ "
                         f"({ytd.get('fiscal_period')} vs {prior_ytd.get('fiscal_period')})")
@@ -190,7 +196,7 @@ def enterprise_value(price: dict, shares: list[dict], debt: list[dict], preferre
     n = sum(_nonneg(s, "shares") for s in shares)
     unit = _same_unit(debt + preferred + nci + cash) or "USD"
     v = (p * n + sum(_nonneg(d, "debt") for d in debt) + sum(_nonneg(x, "preferred") for x in preferred)
-         + sum(_nonneg(x, "NCI") for x in nci) - sum(_nonneg(c, "cash") for c in cash))
+         + sum(_value(x) for x in nci) - sum(_nonneg(c, "cash") for c in cash))
     roles = ([("price", price)] + [("shares", s) for s in shares] + [("debt", d) for d in debt]
              + [("preferred", x) for x in preferred] + [("nci", x) for x in nci] + [("cash", c) for c in cash])
     return _out6("enterprise_value", roles, v, "price * sum(shares) + debt + preferred + nci - cash", unit)

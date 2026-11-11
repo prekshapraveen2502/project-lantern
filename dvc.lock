@@ -1352,8 +1352,8 @@ stages:
       size: 5600
     - path: src/calc/core.py
       hash: md5
-      md5: 9fe74731dae27b42c1c24347073b3294
-      size: 11069
+      md5: bd7df7d8f494a08d6fcd5fd253690e83
+      size: 11601
     - path: src/extract/__init__.py
       hash: md5
       md5: d41d8cd98f00b204e9800998ecf8427e
@@ -1479,3 +1479,64 @@ stages:
       hash: md5
       md5: 5351053fc05449b61d6dae24f6ef40b0
       size: 1894
+  comps_table:
+    cmd: python -m src.comps.table --deal deal_a --out outputs/comps
+    deps:
+    - path: data/dataroom/variant.json
+      hash: md5
+      md5: ea90f84c1c36e2f4c414888b97763ec2
+      size: 299
+    - path: data/edgar_comps
+      hash: md5
+      md5: 37426c31ce9033bb4681cae94534731f.dir
+      size: 469283887
+      nfiles: 1846
+    - path: data/facts/facts.duckdb
+      hash: md5
+      md5: 806c72236e778a0a064fb1139afb7712
+      size: 6041600
+    - path: data/reference/prices_asof_20260930.csv
+      hash: md5
+      md5: 3190af83e2d8e50809fb6dabf90b009e
+      size: 568
+    - path: src/calc/core.py
+      hash: md5
+      md5: bd7df7d8f494a08d6fcd5fd253690e83
+      size: 11601
+    - path: src/comps/__init__.py
+      hash: md5
+      md5: d41d8cd98f00b204e9800998ecf8427e
+      size: 0
+    - path: src/comps/prices.py
+      hash: md5
+      md5: 731309872a4b693c4b633a0f42688903
+      size: 2845
+    - path: src/comps/table.py
+      hash: md5
+      md5: e643cd9858c73963ba8a0dd0af8cf303
+      size: 17686
+    params:
+      params.yaml:
+        comps.tickers:
+        - BILL
+        - FLYW
+        - PAYO
+        - FOUR
+        - TOST
+        - GPN
+        - PYPL
+        - XYZ
+        reference.price_snapshot: data/reference/prices_asof_20260930.csv
+    outs:
+    - path: outputs/comps/deal_a.csv
+      hash: md5
+      md5: 93a2b4499b86c75ca622fe35e429ceec
+      size: 4024
+    - path: outputs/comps/deal_a.md
+      hash: md5
+      md5: f40fbd9ff94396c89305d81b7e31b99a
+      size: 3649
+    - path: outputs/comps/deal_a_calcs.jsonl
+      hash: md5
+      md5: 883679e09c32091e9f9472f7aeeb05fd
+      size: 37957

@@ -393,3 +393,25 @@ stages:
     outs:
       - data/figures_cs2/links.jsonl
       - data/figures_cs2/chart_reads.jsonl
+
+  comps_table:
+    cmd: python -m src.comps.table --deal deal_a --out outputs/comps
+    deps:
+      - src/comps/__init__.py
+      - src/comps/prices.py
+      - src/comps/table.py
+      - src/calc/core.py
+      - data/facts/facts.duckdb
+      - data/reference/prices_asof_20260930.csv
+      - data/dataroom/variant.json
+      - data/edgar_comps
+    params:
+      - comps.tickers
+      - reference.price_snapshot
+    outs:
+      - outputs/comps/deal_a.csv:
+          cache: false
+      - outputs/comps/deal_a.md:
+          cache: false
+      - outputs/comps/deal_a_calcs.jsonl:
+          cache: false
