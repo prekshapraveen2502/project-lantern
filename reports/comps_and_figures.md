@@ -79,11 +79,26 @@ date, shares date, debt basis and a reason for every empty cell are in `outputs/
 
 ### Spot check (10 cells)
 
-**Status: open.** The checklist is `outputs/comps/deal_a_spotcheck.md`, generated once by
-`python -m src.comps.table --spotcheck` and never overwritten.
+**Status: recorded.** The checklist is `outputs/comps/deal_a_spotcheck.md`, generated once by
+`python -m src.comps.table --spotcheck` and filled in by Preksha. Her edits changed only the fill-in columns.
 - **The 10 cells:** BILL EV/LTM revenue, BILL EV, FLYW LTM revenue, PAYO EBITDA margin, FOUR EV/LTM EBITDA, TOST gross margin, GPN revenue growth, PYPL EV, XYZ net debt and TOST EV/LTM revenue. Together they cover every metric and every comparable.
 - **What each cell lists:** its value, calc_id and formula, plus every input with its fact_id, value, filing (accession), concept, period, dimensions and its EDGAR URL anchored to the iXBRL element (the price lists its source URL).
-- **Still to do:** Preksha fills in the results by hand. This section will then record them.
+
+**Results** (counts from `outputs/comps/deal_a_spotcheck.md`):
+
+| Check | Method | Result |
+|---|---|---|
+| Cell value | arithmetic recomputed independently by hand from the listed inputs | 10 of 10 match (`match (y/n): y` ×10, `n` ×0) |
+| Inputs | each input checked by Preksha against its source (EDGAR iXBRL element; for prices, the snapshot's source) | 63 of 63 input rows `y`, 0 `n` (54 distinct inputs, of which 4 prices: BILL, FOUR, PYPL, TOST) |
+
+No cell or input is marked `n`.
+
+**Notes Preksha wrote:**
+- **PYPL EV (cell 8):** "debt is noncurrent only (current portion not tagged: known gap, EV likely understated)". This is the PYPL current-debt limitation above. The cell matches its inputs, but EV leaves out the untagged current portion of debt.
+- **TOST EV/LTM revenue (cell 10):** "no debt tagged for TOST; Class B at the Class A price".
+- **BILL EV (cell 2):** short-term investments (AFS debt securities, current) are subtracted as cash-like.
+- **FOUR EV/LTM EBITDA (cell 5):** NCI is added.
+- **PAYO EBITDA margin (cell 4):** EBITDA = operating income + D&A, LTM.
 
 BILL is comparable #1, but its EV/EBITDA is `n.m.`, so the checklist uses BILL EV/LTM revenue instead.
 
