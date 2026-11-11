@@ -1352,8 +1352,8 @@ stages:
       size: 5600
     - path: src/calc/core.py
       hash: md5
-      md5: 6d5c5c4220cac3f0652c058d71e611ca
-      size: 3280
+      md5: 9fe74731dae27b42c1c24347073b3294
+      size: 11069
     - path: src/extract/__init__.py
       hash: md5
       md5: d41d8cd98f00b204e9800998ecf8427e
@@ -1411,3 +1411,27 @@ stages:
       md5: dfcbbfa5699c229732253e0b6284d9a1.dir
       size: 154793
       nfiles: 6
+  figures:
+    cmd: python -m src.figures.run --deals kestrel --out data/figures_cs2
+    deps:
+    - path: data/dataroom/kestrel/export/records.jsonl
+      hash: md5
+      md5: e52b89ef77a8e0d540bd360ed075a7dd
+      size: 157357
+    - path: src/figures/__init__.py
+      hash: md5
+      md5: d41d8cd98f00b204e9800998ecf8427e
+      size: 0
+    - path: src/figures/links.py
+      hash: md5
+      md5: 022be58765576b01084709671afa550a
+      size: 5640
+    - path: src/figures/run.py
+      hash: md5
+      md5: 4c0526040b3fae7a82d4a588c7636b7f
+      size: 1757
+    outs:
+    - path: data/figures_cs2/links.jsonl
+      hash: md5
+      md5: ea38c55da3b7a43064f446ce56c80756
+      size: 1894

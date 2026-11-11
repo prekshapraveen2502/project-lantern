@@ -368,3 +368,13 @@ stages:
       - budget.usd_cap_per_task
     outs:
       - data/structured/kestrel
+
+  figures:
+    cmd: python -m src.figures.run --deals kestrel --out data/figures_cs2
+    deps:
+      - src/figures/__init__.py
+      - src/figures/links.py
+      - src/figures/run.py
+      - data/dataroom/kestrel/export/records.jsonl
+    outs:
+      - data/figures_cs2/links.jsonl
