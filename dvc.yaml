@@ -375,6 +375,21 @@ stages:
       - src/figures/__init__.py
       - src/figures/links.py
       - src/figures/run.py
-      - data/dataroom/kestrel/export/records.jsonl
+      - src/figures/chart_read.py
+      - src/facts/claims.py
+      - src/facts/reconcile.py
+      - src/llm/client.py
+      - config/metrics_vocab.yaml
+      - data/dataroom/kestrel/export
+      - data/facts/facts.duckdb
+      - data/figures_cache
+    params:
+      - reconcile
+      - facts.fye_tolerance_days
+      - llm.provider
+      - llm.models.vision
+      - llm.temperature
+      - budget.usd_cap_per_task
     outs:
       - data/figures_cs2/links.jsonl
+      - data/figures_cs2/chart_reads.jsonl

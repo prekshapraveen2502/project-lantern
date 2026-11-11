@@ -1414,24 +1414,68 @@ stages:
   figures:
     cmd: python -m src.figures.run --deals kestrel --out data/figures_cs2
     deps:
-    - path: data/dataroom/kestrel/export/records.jsonl
+    - path: config/metrics_vocab.yaml
       hash: md5
-      md5: e52b89ef77a8e0d540bd360ed075a7dd
-      size: 157357
+      md5: 598918472c07151b4ab188ed62f18c80
+      size: 11846
+    - path: data/dataroom/kestrel/export
+      hash: md5
+      md5: 191b5973e6fbacfe0a786ea61388b422.dir
+      size: 3621497
+      nfiles: 99
+    - path: data/facts/facts.duckdb
+      hash: md5
+      md5: 806c72236e778a0a064fb1139afb7712
+      size: 6041600
+    - path: data/figures_cache
+      hash: md5
+      md5: b53ccb27f62d353325540140218e58e0.dir
+      size: 1253
+      nfiles: 4
+    - path: src/facts/claims.py
+      hash: md5
+      md5: 12ea67cc7f4792a9ec8e8b2d8f9a32f6
+      size: 13073
+    - path: src/facts/reconcile.py
+      hash: md5
+      md5: cda10d3b436807aadd9efc9b8012165e
+      size: 7606
     - path: src/figures/__init__.py
       hash: md5
       md5: d41d8cd98f00b204e9800998ecf8427e
       size: 0
+    - path: src/figures/chart_read.py
+      hash: md5
+      md5: 1659423547b66c3a6fc3b2f3abd0948f
+      size: 7939
     - path: src/figures/links.py
       hash: md5
-      md5: 022be58765576b01084709671afa550a
-      size: 5640
+      md5: 5f4123d2b8f33de7a27dd924a4d310e2
+      size: 5743
     - path: src/figures/run.py
       hash: md5
-      md5: 4c0526040b3fae7a82d4a588c7636b7f
-      size: 1757
+      md5: c272fc5f11dad96564982cb3a311884e
+      size: 4689
+    - path: src/llm/client.py
+      hash: md5
+      md5: 2f828be174c1f55d9861f3d36c34bd84
+      size: 5524
+    params:
+      params.yaml:
+        budget.usd_cap_per_task: 0.1
+        facts.fye_tolerance_days: 7
+        llm.models.vision: gpt-4.1-mini
+        llm.provider: openai
+        llm.temperature: 0
+        reconcile:
+          tolerance_rel: 0.01
+          high_gap_rel: 0.05
     outs:
+    - path: data/figures_cs2/chart_reads.jsonl
+      hash: md5
+      md5: 8ce915155bd1b5697fd7775a0c49f605
+      size: 12853
     - path: data/figures_cs2/links.jsonl
       hash: md5
-      md5: ea38c55da3b7a43064f446ce56c80756
+      md5: 5351053fc05449b61d6dae24f6ef40b0
       size: 1894

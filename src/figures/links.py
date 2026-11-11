@@ -12,8 +12,9 @@ Input: a deal's Part 0 records (data/dataroom/{deal}/export/records.jsonl). For 
   3. Else below: the same, for a candidate whose top is at or below the figure's bottom, within the gap.
   4. Else no caption (rule "none"); logged, never guessed.
 Nesting: a Figure covering at least NEST_COVER of another Figure on the same page is its container. Every Figure is
-linked; a Figure that contains another is marked chart_read_target false, so a chart detected twice (an outer
-page-sized box and the chart inside it) is read once (Part 6 item 4).
+linked; only a Figure inside no other is chart_read_target, so a chart detected twice (an outer box and a box
+inside it) is read once (Part 6 item 4). The outer box is read because on Kestrel's deck the detector's inner box
+cuts off the chart's own title and clips the last bar.
 """
 from __future__ import annotations
 
@@ -102,7 +103,7 @@ def link_deal(records: list[dict]) -> list[dict]:
                     "caption_block_id": cap["block_id"] if cap else None,
                     "caption_text": (cap.get("text") or "").strip() if cap else None,
                     "caption_rule": rule, "caption_gap_pt": gap,
-                    "contained_in": contained_in, "contains": contains, "chart_read_target": not contains})
+                    "contained_in": contained_in, "contains": contains, "chart_read_target": not contained_in})
     return out
 
 
