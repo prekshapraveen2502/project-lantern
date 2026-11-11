@@ -332,3 +332,7 @@
 {"model": "gpt-4.1-mini", "in": 10760, "out": 566, "usd": 0.00521, "stage": "memo:structured"}
 {"model": "gpt-4.1-mini", "in": 11192, "out": 438, "usd": 0.005178, "stage": "memo:structured"}
 {"model": "gpt-4.1-mini", "in": 10748, "out": 83, "usd": 0.004432, "stage": "memo:structured"}
+{"model": "gpt-4.1-mini", "in": 1986, "out": 91, "usd": 0.00094, "stage": "figures:chart_read"}
+{"model": "gpt-4.1-mini", "in": 2267, "out": 80, "usd": 0.001035, "stage": "figures:chart_read"}
+{"model": "gpt-4.1-mini", "in": 3390, "out": 95, "usd": 0.001508, "stage": "figures:chart_read"}
+{"model": "gpt-4.1-mini", "in": 3453, "out": 88, "usd": 0.001522, "stage": "figures:chart_read"}

@@ -1,0 +1,6 @@
+outs:
+- md5: b53ccb27f62d353325540140218e58e0.dir
+  size: 1253
+  nfiles: 4
+  hash: md5
+  path: figures_cache
